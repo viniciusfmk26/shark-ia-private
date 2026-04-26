@@ -196,30 +196,25 @@ Depois gerar o ALTER FUNCTION com workspace_id no WHERE.
 Aplicar via migration (criar arquivo 095_fix_trial_functions.sql).
 ```
 
-### Fix 2.4 — Criar política de retenção do banco
+### Fix 2.4 — Criar política de retenção do banco ✅ 26/04/2026
 
-```
-Tarefa para Claude Code:
+**Concluído.** Migration executada e cron implantado.
 
-Criar migration /root/Zapflix-Tech/migrations/096_retention_policy.sql:
+Resultados da limpeza inicial:
+- `processed_events`: 248.988 registros removidos
+- `worker_runs`: 121.715 registros removidos
+- `audit_logs`: 0 (dados recentes, < 90 dias)
+- `jobs`: 0 (dados recentes)
 
--- Limpar audit_logs com mais de 90 dias
-DELETE FROM audit_logs WHERE created_at < NOW() - INTERVAL '90 days';
+Arquivos criados:
+- `migrations/096_retention_policy.sql` — limpeza inicial
+- `app/api/cron/db-retention/route.ts` — cron semanal (domingo 4h)
 
--- Limpar processed_events com mais de 30 dias
-DELETE FROM processed_events WHERE created_at < NOW() - INTERVAL '30 days';
-
--- Limpar worker_runs com mais de 14 dias
-DELETE FROM worker_runs WHERE created_at < NOW() - INTERVAL '14 days';
-
--- Limpar jobs succeeded/failed/dead com mais de 30 dias
-DELETE FROM jobs
-WHERE status IN ('succeeded', 'failed', 'dead')
-AND updated_at < NOW() - INTERVAL '30 days';
-
-Depois criar cron que rode semanalmente:
-Arquivo: /root/Zapflix-Tech/app/api/cron/db-retention/route.ts
-```
+Política ativa:
+- `audit_logs` → 90 dias
+- `processed_events` → 30 dias
+- `worker_runs` → 14 dias
+- `jobs` (succeeded/failed/dead) → já tratado pelo purge-jobs
 
 ### Fix 2.5 — Configurar backups automáticos
 
@@ -451,7 +446,7 @@ Não deletar, apenas mover.
 - [x] IDOR analytics corrigido (26/04/2026)
 - [x] handleSyncContacts com workspace_id (26/04/2026)
 - [x] delete_*_trials corrigidas (26/04/2026)
-- [ ] Política de retenção criada
+- [x] Política de retenção criada (26/04/2026)
 - [x] Backups automáticos configurados (27/04/2026)
 
 ### Semana 3 — Operacional

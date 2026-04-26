@@ -151,6 +151,7 @@ O Zapflix Tech está funcional com os seguintes módulos:
 
 | Feature | Data | Observação |
 |---------|------|-----------|
+| Aba Problemas no Sales Brain | 26/04/2026 | commit 33c21a4a |
 | Botão cancelar funil no badge "Inscrito" | 26/04/2026 | commit ecde0f1a |
 | Fix cobrança avulsa vs plano mensal (webhook) | 26/04/2026 | commit ecde0f1a |
 | Auth /api/debug e /api/migrate | 26/04/2026 | commit b102cb02 |

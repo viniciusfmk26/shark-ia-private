@@ -103,6 +103,13 @@ curl -H "x-cron-secret: zapflix2026" \
 
 **Mitigação:** remover o valor hardcoded e usar apenas `process.env.CRON_SECRET`.
 
+**✅ Corrigido em 26/04/2026** — removido de 3 arquivos residuais:
+- `app/api/cron/trial-followup/route.ts`
+- `app/api/cron/sigma-backfill-24h/route.ts`
+- `app/api/cron/promote-expired-trials/route.ts`
+
+Commit: `239b660f` — deploy aplicado via `docker service update --force wp_zapflix-web`.
+
 ### C1.7 — MinIO com credencial fraca e bucket público
 
 ```

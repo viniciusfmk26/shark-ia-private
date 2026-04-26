@@ -40,24 +40,19 @@ iptables -I DOCKER-USER -p tcp -m multiport \
 
 URL: `https://wp-zapflix-postgrest.jomik8.easypanel.host`
 
-Sem token JWT, cai no role `anon` que tem SELECT em 28 tabelas incluindo:
+Sem token JWT, cai no role `anon` que tinha SELECT em **20 tabelas críticas** incluindo:
+- `nextauth_users` — email e dados de todos os usuários do sistema
 - `contacts` — nome + telefone de **todos os clientes de todos os tenants**
-- `nextauth_users` — email de todos os 24 usuários do sistema
-- `nextauth_accounts`, `nextauth_sessions` — dados de autenticação
+- `messages`, `conversations` — histórico completo de conversas cross-tenant
 
-```bash
-# PoC (NÃO executar em produção)
-curl 'https://wp-zapflix-postgrest.jomik8.easypanel.host/contacts?select=id,name,phone&limit=10'
-curl 'https://wp-zapflix-postgrest.jomik8.easypanel.host/nextauth_users?select=*'
-```
-
-**Mitigação:** remover rota Traefik do PostgREST OU adicionar `forwardAuth`. Idealmente desligar o serviço (não é mais necessário após migração para NextAuth).
+**✅ Corrigido em 27/04/2026** — serviço `zapflix-postgrest` desligado no Easypanel.
+Role `anon` eliminado da superfície de ataque junto com o serviço.
 
 ### C1.3 — PGRST_JWT_SECRET vazado → bypass total do banco
 
-O secret do PostgREST está visível via `docker service inspect`. Com ele é possível forjar um JWT com `role: service_role` e ter acesso irrestrito a todas as tabelas via PostgREST, ignorando RLS.
+O secret do PostgREST estava visível via `docker service inspect`. Com ele era possível forjar um JWT com `role: service_role` e ter acesso irrestrito a todas as tabelas via PostgREST, ignorando RLS.
 
-**Mitigação:** rotacionar o secret + desligar PostgREST.
+**✅ Corrigido em 27/04/2026** — eliminado junto com o desligamento do PostgREST (C1.2).
 
 ### C1.4 — GitHub PAT em texto plano no servidor
 
@@ -316,8 +311,8 @@ Schema sem auditabilidade. Onboarding e disaster recovery comprometidos.
 | ID | Achado | Severidade | Status |
 |----|--------|------------|--------|
 | C1.1 | Portas expostas sem firewall | 🔴 Crítico | ✅ Corrigido (26/04/2026) |
-| C1.2 | PostgREST público | 🔴 Crítico | ⏳ Aberto |
-| C1.3 | PGRST_JWT_SECRET vazado | 🔴 Crítico | ⏳ Aberto |
+| C1.2 | PostgREST público | 🔴 Crítico | ✅ Corrigido (27/04/2026) |
+| C1.3 | PGRST_JWT_SECRET vazado | 🔴 Crítico | ✅ Corrigido (27/04/2026) |
 | C1.4 | GitHub PAT em texto plano | 🔴 Crítico | ⏳ Aberto |
 | C1.5 | Endpoints sem auth | 🔴 Crítico | ✅ Corrigido (26/04/2026) |
 | C1.6 | Cron secret hardcoded | 🔴 Crítico | ✅ Corrigido (26/04/2026) |

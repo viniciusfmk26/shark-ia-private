@@ -455,7 +455,7 @@ Não deletar, apenas mover.
 
 ### Semana 3 — Operacional
 - [ ] Stack Supabase desligado
-- [ ] PostgREST desligado
+- [x] PostgREST desligado (27/04/2026)
 - [ ] short-url.ts usando crypto
 - [ ] Redis com keyPrefix
 - [ ] Monitor reativado e alertas funcionando

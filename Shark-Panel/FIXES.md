@@ -436,7 +436,7 @@ Não deletar, apenas mover.
 ## Checklist de conclusão por semana
 
 ### Semana 1 — Segurança crítica
-- [ ] Portas fechadas via DOCKER-USER
+- [x] Portas fechadas via DOCKER-USER
 - [ ] /api/debug/* com requireSuperAdmin
 - [ ] /api/migrate/* com requireSuperAdmin
 - [ ] Cron secret hardcoded removido

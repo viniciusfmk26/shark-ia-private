@@ -327,7 +327,7 @@ Schema sem auditabilidade. Onboarding e disaster recovery comprometidos.
 | C2.1 | IDOR analytics | 🔴 Crítico | ✅ Corrigido (26/04/2026) |
 | C2.2 | IDOR checkout/cancel | 🔴 Crítico | ⏳ Aberto |
 | C2.3 | handleSyncContacts | 🔴 Crítico | ✅ Corrigido (26/04/2026) |
-| C2.4 | delete_*_trials cross-tenant | 🔴 Crítico | ⏳ Aberto |
+| C2.4 | delete_*_trials cross-tenant | 🔴 Crítico | ✅ Corrigido (26/04/2026) |
 | C2.5 | RLS decorativa | 🔴 Crítico | ⏳ Aberto |
 | M1 | Zero backups | 🟠 Médio | ✅ Corrigido (27/04/2026) |
 | M2 | short_links PRNG | 🟠 Médio | ⏳ Aberto |

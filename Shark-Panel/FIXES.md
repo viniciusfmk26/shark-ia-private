@@ -449,7 +449,7 @@ Não deletar, apenas mover.
 
 ### Semana 2 — Dados e banco
 - [x] IDOR analytics corrigido (26/04/2026)
-- [ ] handleSyncContacts com workspace_id
+- [x] handleSyncContacts com workspace_id (26/04/2026)
 - [ ] delete_*_trials corrigidas
 - [ ] Política de retenção criada
 - [x] Backups automáticos configurados (27/04/2026)

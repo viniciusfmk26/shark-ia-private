@@ -295,33 +295,14 @@ OU (via docker):
 docker service scale wp_zapflix-postgrest=0
 ```
 
-### Fix 3.3 — Corrigir short-url.ts
+### Fix 3.3 — Corrigir short-url.ts ✅ 26/04/2026
 
-```
-Tarefa para Claude Code:
+**Concluído.** `Math.random()` substituído por `randomBytes` do Node crypto.
 
-Arquivo: /root/Zapflix-Tech/lib/short-url.ts
+ALPHABET original preservado (`'abcdefghijkmnpqrstuvwxyz23456789'`, 32 chars = 2^5)
+— `bytes[i] % 32` é uniforme em 0-255, sem bias modular.
 
-Substituir Math.random() por crypto.randomBytes:
-
-ANTES:
-const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
-let code = '';
-for (let i = 0; i < 6; i++) {
-  code += chars[Math.floor(Math.random() * chars.length)];
-}
-
-DEPOIS:
-import { randomBytes } from 'crypto';
-const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
-const bytes = randomBytes(6);
-let code = '';
-for (let i = 0; i < 6; i++) {
-  code += chars[bytes[i] % chars.length];
-}
-
-Não alterar mais nada no arquivo.
-```
+Arquivo alterado: `lib/short-url.ts`
 
 ### Fix 3.4 — Adicionar keyPrefix no Redis
 
@@ -464,7 +445,7 @@ Não deletar, apenas mover.
 ### Semana 3 — Operacional
 - [x] Stack Supabase desligado (27/04/2026)
 - [x] PostgREST desligado (27/04/2026)
-- [ ] short-url.ts usando crypto
+- [x] short-url.ts usando crypto (26/04/2026)
 - [ ] Redis com keyPrefix
 - [ ] Monitor reativado e alertas funcionando
 - [ ] Crons faltantes agendados

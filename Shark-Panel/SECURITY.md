@@ -330,7 +330,7 @@ Schema sem auditabilidade. Onboarding e disaster recovery comprometidos.
 | C2.4 | delete_*_trials cross-tenant | 🔴 Crítico | ✅ Corrigido (26/04/2026) |
 | C2.5 | RLS decorativa | 🔴 Crítico | ⏳ Aberto |
 | M1 | Zero backups | 🟠 Médio | ✅ Corrigido (27/04/2026) |
-| M2 | short_links PRNG | 🟠 Médio | ⏳ Aberto |
+| M2 | short_links PRNG | 🟠 Médio | ✅ Corrigido (26/04/2026) |
 | M3 | Redis sem keyPrefix | 🟠 Médio | ⏳ Aberto |
 | M4 | Banco sem retenção | 🟠 Médio | ⏳ Aberto |
 | M5 | automations DEFAULT errado | 🟠 Médio | ⏳ Aberto |

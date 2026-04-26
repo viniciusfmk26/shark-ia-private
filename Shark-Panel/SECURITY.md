@@ -73,7 +73,7 @@ Acesso de escrita ao repositório. Qualquer pessoa com acesso ao servidor pode i
 /api/debug/media-check             → mídias S3 cross-tenant sem auth
 /api/migrate/reset-all-data        → wipe do banco sem auth
 /api/migrate/reset-admin-password  → reset de senha sem auth
-/api/notifications (GET/PATCH/DELETE) → leitura/escrita sem auth
+/api/notifications (GET/PATCH) → ✅ auth adicionada em 27/04/2026 (commit 67ca9470)
 /api/automations/funis/enroll      → spam WhatsApp sem auth
 ```
 
@@ -320,7 +320,7 @@ Schema sem auditabilidade. Onboarding e disaster recovery comprometidos.
 | C1.2 | PostgREST público | 🔴 Crítico | ✅ Corrigido (27/04/2026) |
 | C1.3 | PGRST_JWT_SECRET vazado | 🔴 Crítico | ✅ Corrigido (27/04/2026) |
 | C1.4 | GitHub PAT em texto plano | 🔴 Crítico | ⏳ Aberto |
-| C1.5 | Endpoints sem auth | 🔴 Crítico | ✅ Corrigido (26/04/2026) |
+| C1.5 | Endpoints sem auth | 🔴 Crítico | ⚠️ Parcial — /notifications corrigido (27/04/2026); /automations/funis/enroll pendente |
 | C1.6 | Cron secret hardcoded | 🔴 Crítico | ✅ Corrigido (26/04/2026) |
 | C1.7 | MinIO credencial fraca | 🔴 Crítico | ⏳ Aberto |
 | C1.8 | Supabase Kong JWT 2036 | 🔴 Crítico | ✅ Corrigido (27/04/2026) |

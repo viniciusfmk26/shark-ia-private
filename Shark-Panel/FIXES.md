@@ -445,7 +445,7 @@ Não deletar, apenas mover.
 - [ ] GitHub PAT revogado e renovado
 - [ ] MinIO secret rotacionado (32 chars)
 - [ ] CRON_SECRET rotacionado
-- [ ] /api/notifications com auth
+- [x] /api/notifications com auth (27/04/2026)
 
 ### Semana 2 — Dados e banco
 - [ ] IDOR analytics corrigido

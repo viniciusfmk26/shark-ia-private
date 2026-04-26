@@ -437,7 +437,7 @@ Não deletar, apenas mover.
 
 ### Semana 1 — Segurança crítica
 - [x] Portas fechadas via DOCKER-USER
-- [ ] /api/debug/* com requireSuperAdmin
+- [x] /api/debug/* com requireSuperAdmin
 - [ ] /api/migrate/* com requireSuperAdmin
 - [ ] Cron secret hardcoded removido
 - [ ] GitHub PAT revogado e renovado

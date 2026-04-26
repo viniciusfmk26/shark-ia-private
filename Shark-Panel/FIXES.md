@@ -455,7 +455,7 @@ Não deletar, apenas mover.
 - [x] Backups automáticos configurados (27/04/2026)
 
 ### Semana 3 — Operacional
-- [ ] Stack Supabase desligado
+- [x] Stack Supabase desligado (27/04/2026)
 - [x] PostgREST desligado (27/04/2026)
 - [ ] short-url.ts usando crypto
 - [ ] Redis com keyPrefix

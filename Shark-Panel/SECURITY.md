@@ -259,6 +259,8 @@ realtime-dev, supabase-inbucket
 
 Confirmado: sem dados reais. Apenas superfície de ataque e consumo de recursos.
 
+**✅ Corrigido em 27/04/2026** — todos os 13 containers derrubados via `docker compose down` em dois passos (compose file: `/root/supabase-docker/docker/docker-compose.yml`). Banco confirmado vazio (0 rows) antes do shutdown. App respondendo HTTP 200 após o desligamento.
+
 ### M8 — MAX_PRICE_CENTS hardcoded
 
 ```typescript
@@ -321,7 +323,7 @@ Schema sem auditabilidade. Onboarding e disaster recovery comprometidos.
 | C1.5 | Endpoints sem auth | 🔴 Crítico | ✅ Corrigido (26/04/2026) |
 | C1.6 | Cron secret hardcoded | 🔴 Crítico | ✅ Corrigido (26/04/2026) |
 | C1.7 | MinIO credencial fraca | 🔴 Crítico | ⏳ Aberto |
-| C1.8 | Supabase Kong JWT 2036 | 🔴 Crítico | ⏳ Aberto |
+| C1.8 | Supabase Kong JWT 2036 | 🔴 Crítico | ✅ Corrigido (27/04/2026) |
 | C2.1 | IDOR analytics | 🔴 Crítico | ⏳ Aberto |
 | C2.2 | IDOR checkout/cancel | 🔴 Crítico | ⏳ Aberto |
 | C2.3 | handleSyncContacts | 🔴 Crítico | ⏳ Aberto |
@@ -333,7 +335,7 @@ Schema sem auditabilidade. Onboarding e disaster recovery comprometidos.
 | M4 | Banco sem retenção | 🟠 Médio | ⏳ Aberto |
 | M5 | automations DEFAULT errado | 🟠 Médio | ⏳ Aberto |
 | M6 | Monitor offline | 🟠 Médio | ⏳ Aberto |
-| M7 | Supabase legado rodando | 🟠 Médio | ⏳ Aberto |
+| M7 | Supabase legado rodando | 🟠 Médio | ✅ Corrigido (27/04/2026) |
 | M8 | MAX_PRICE hardcoded | 🟠 Médio | ⏳ Aberto |
 | M9 | Migrations sem registro | 🟠 Médio | ⏳ Aberto |
 

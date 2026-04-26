@@ -440,7 +440,8 @@ Não deletar, apenas mover.
 - [x] Portas fechadas via DOCKER-USER (26/04/2026)
 - [x] /api/debug/* com requireSuperAdmin (26/04/2026)
 - [x] /api/migrate/* com requireSuperAdmin (26/04/2026)
-- [x] Cron secret hardcoded removido (26/04/2026)
+- [x] Cron secret hardcoded removido do código (26/04/2026)
+- [x] Cron secret hardcoded removido do crontab do servidor (27/04/2026)
 - [ ] GitHub PAT revogado e renovado
 - [ ] MinIO secret rotacionado (32 chars)
 - [ ] CRON_SECRET rotacionado

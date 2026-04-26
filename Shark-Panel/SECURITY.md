@@ -105,6 +105,8 @@ curl -H "x-cron-secret: zapflix2026" \
 
 Commit: `239b660f` — deploy aplicado via `docker service update --force wp_zapflix-web`.
 
+**✅ Corrigido em 27/04/2026** — `zapflix2026` também estava hardcoded no crontab do servidor em 2 entradas (`trial-followup` e `promote-expired-trials`). Substituído pelo `CRON_TOKEN` real (49 chars) via script sem exposição do valor.
+
 ### C1.7 — MinIO com credencial fraca e bucket público
 
 ```

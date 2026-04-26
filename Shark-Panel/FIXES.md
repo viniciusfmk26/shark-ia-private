@@ -448,7 +448,7 @@ Não deletar, apenas mover.
 - [x] /api/notifications com auth (27/04/2026)
 
 ### Semana 2 — Dados e banco
-- [ ] IDOR analytics corrigido
+- [x] IDOR analytics corrigido (26/04/2026)
 - [ ] handleSyncContacts com workspace_id
 - [ ] delete_*_trials corrigidas
 - [ ] Política de retenção criada

@@ -436,10 +436,10 @@ Não deletar, apenas mover.
 ## Checklist de conclusão por semana
 
 ### Semana 1 — Segurança crítica
-- [x] Portas fechadas via DOCKER-USER
-- [x] /api/debug/* com requireSuperAdmin
-- [x] /api/migrate/* com requireSuperAdmin
-- [ ] Cron secret hardcoded removido
+- [x] Portas fechadas via DOCKER-USER (26/04/2026)
+- [x] /api/debug/* com requireSuperAdmin (26/04/2026)
+- [x] /api/migrate/* com requireSuperAdmin (26/04/2026)
+- [x] Cron secret hardcoded removido (26/04/2026)
 - [ ] GitHub PAT revogado e renovado
 - [ ] MinIO secret rotacionado (32 chars)
 - [ ] CRON_SECRET rotacionado

@@ -308,12 +308,12 @@ Schema sem auditabilidade. Onboarding e disaster recovery comprometidos.
 
 | ID | Achado | Severidade | Status |
 |----|--------|------------|--------|
-| C1.1 | Portas expostas sem firewall | 🔴 Crítico | ⏳ Aberto |
+| C1.1 | Portas expostas sem firewall | 🔴 Crítico | ✅ Corrigido (26/04/2026) |
 | C1.2 | PostgREST público | 🔴 Crítico | ⏳ Aberto |
 | C1.3 | PGRST_JWT_SECRET vazado | 🔴 Crítico | ⏳ Aberto |
 | C1.4 | GitHub PAT em texto plano | 🔴 Crítico | ⏳ Aberto |
-| C1.5 | Endpoints sem auth | 🔴 Crítico | ⏳ Aberto |
-| C1.6 | Cron secret hardcoded | 🔴 Crítico | ⏳ Aberto |
+| C1.5 | Endpoints sem auth | 🔴 Crítico | ✅ Corrigido (26/04/2026) |
+| C1.6 | Cron secret hardcoded | 🔴 Crítico | ✅ Corrigido (26/04/2026) |
 | C1.7 | MinIO credencial fraca | 🔴 Crítico | ⏳ Aberto |
 | C1.8 | Supabase Kong JWT 2036 | 🔴 Crítico | ⏳ Aberto |
 | C2.1 | IDOR analytics | 🔴 Crítico | ⏳ Aberto |

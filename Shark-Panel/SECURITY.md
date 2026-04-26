@@ -325,7 +325,7 @@ Schema sem auditabilidade. Onboarding e disaster recovery comprometidos.
 | C1.7 | MinIO credencial fraca | 🔴 Crítico | ⏳ Aberto |
 | C1.8 | Supabase Kong JWT 2036 | 🔴 Crítico | ✅ Corrigido (27/04/2026) |
 | C2.1 | IDOR analytics | 🔴 Crítico | ✅ Corrigido (26/04/2026) |
-| C2.2 | IDOR checkout/cancel | 🔴 Crítico | ⏳ Aberto |
+| C2.2 | IDOR checkout/cancel | 🔴 Crítico | ✅ Corrigido (26/04/2026) |
 | C2.3 | handleSyncContacts | 🔴 Crítico | ✅ Corrigido (26/04/2026) |
 | C2.4 | delete_*_trials cross-tenant | 🔴 Crítico | ✅ Corrigido (26/04/2026) |
 | C2.5 | RLS decorativa | 🔴 Crítico | ⏳ Aberto |

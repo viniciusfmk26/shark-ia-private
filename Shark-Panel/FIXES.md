@@ -174,6 +174,17 @@ Garantir que workspace_id está disponível no contexto da função
 (vem do payload do job ou da instância).
 ```
 
+### Fix 2.2b — Corrigir IDOR checkout/orders/cancel ✅ 26/04/2026
+
+**Concluído.** `POST /api/checkout/orders/[id]/cancel` não filtrava por `workspace_id` no UPDATE.
+
+Qualquer owner/admin autenticado podia cancelar pedidos de outros tenants conhecendo o ID.
+
+**Correção:** `workspaceId` resolvido via `getWorkspaceIdSafe()` fora do bloco de permissão
+e adicionado ao `WHERE id = $1 AND workspace_id = $2` do UPDATE.
+
+Arquivo alterado: `app/api/checkout/orders/[id]/cancel/route.ts`
+
 ### Fix 2.3 — Corrigir functions do banco cross-tenant
 
 ```
@@ -444,6 +455,7 @@ Não deletar, apenas mover.
 
 ### Semana 2 — Dados e banco
 - [x] IDOR analytics corrigido (26/04/2026)
+- [x] IDOR checkout/cancel corrigido (26/04/2026)
 - [x] handleSyncContacts com workspace_id (26/04/2026)
 - [x] delete_*_trials corrigidas (26/04/2026)
 - [x] Política de retenção criada (26/04/2026)

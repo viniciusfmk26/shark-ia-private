@@ -77,12 +77,13 @@ MONITORAMENTO
 ```
 /root/Zapflix-Tech/
 ├── app/                    # Next.js App Router
-│   ├── api/                # 579 rotas de API
+│   ├── api/                # 580 rotas de API
 │   │   ├── admin/          # Rotas master (requerem requireSuperAdmin)
 │   │   ├── cron/           # 25 crons (requerem CRON_SECRET)
 │   │   ├── debug/          # ⚠️ SEM AUTH — ver SECURITY.md
 │   │   ├── migrate/        # ⚠️ SEM AUTH — ver SECURITY.md
 │   │   ├── master/         # Rotas do painel master
+│   │   ├── sales-brain/    # 14 rotas do Cérebro de Vendas (auth obrigatória)
 │   │   └── ...             # Demais rotas de negócio
 │   ├── (dashboard)/        # Páginas autenticadas (60 páginas)
 │   └── master/             # Painel master (28 rotas)

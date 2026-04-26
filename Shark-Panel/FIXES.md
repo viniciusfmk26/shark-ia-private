@@ -454,3 +454,22 @@ Não deletar, apenas mover.
 - [ ] Triggers duplicados removidos
 - [ ] Arquivos históricos arquivados
 - [ ] SECURITY.md atualizado com status dos fixes
+
+---
+
+## Features concluídas (fora do plano de fixes)
+
+### Sales Brain — Rota /api/sales-brain/problems ✅ 26/04/2026
+
+**Concluído.** A tela Sales Brain (`/sales-brain`) tem 8 abas de inteligência comercial. A aba Problemas consumia `/api/sales-brain/problems` mas a rota não existia — retornava 404 silenciosamente.
+
+**Rota criada:** `app/api/sales-brain/problems/route.ts`
+
+- `GET ?category=<opcional>` — lista problemas do workspace filtrados por categoria, retorna `{ problems, categories }`
+- `POST { category, problem, solution }` — cria problema manual com `ON CONFLICT DO UPDATE` (evita duplicatas por workspace+problem)
+- Validação de categoria contra enum do banco (`VALID_CATEGORIES`)
+- Auth via `session + getWorkspaceIdSafe()` igual às outras 13 rotas do Sales Brain
+
+**Tabela:** `app_problems_learned` (18 registros existentes, schema com `times_detected`, `success_rate`, `source: manual|ai_detected|agent_reported`)
+
+**Nota:** a aba Problemas tem estado e fetch no frontend mas não tem TabsTrigger nem TabsContent na UI — a rota estava pronta antes da UI ser completada.

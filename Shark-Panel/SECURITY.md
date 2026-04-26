@@ -195,7 +195,9 @@ Não existe nenhum backup automático de:
 
 Em caso de incidente (ransomware via portas expostas), zero recovery possível.
 
-**Mitigação:** configurar `pg_dump` diário + backup do MinIO.
+**✅ Corrigido em 27/04/2026** — `/root/backup.sh` criado com `pg_dump | gzip` (337 MB por execução).
+Agendado via crontab: `0 3 * * *` com retenção automática de 7 dias em `/root/backups/`.
+Log em `/root/backup.log`. MySQL e MinIO ainda sem backup (pendente).
 
 ### M2 — short_links com PRNG previsível
 
@@ -323,7 +325,7 @@ Schema sem auditabilidade. Onboarding e disaster recovery comprometidos.
 | C2.3 | handleSyncContacts | 🔴 Crítico | ⏳ Aberto |
 | C2.4 | delete_*_trials cross-tenant | 🔴 Crítico | ⏳ Aberto |
 | C2.5 | RLS decorativa | 🔴 Crítico | ⏳ Aberto |
-| M1 | Zero backups | 🟠 Médio | ⏳ Aberto |
+| M1 | Zero backups | 🟠 Médio | ✅ Corrigido (27/04/2026) |
 | M2 | short_links PRNG | 🟠 Médio | ⏳ Aberto |
 | M3 | Redis sem keyPrefix | 🟠 Médio | ⏳ Aberto |
 | M4 | Banco sem retenção | 🟠 Médio | ⏳ Aberto |

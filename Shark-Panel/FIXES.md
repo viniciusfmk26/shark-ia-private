@@ -451,7 +451,7 @@ Não deletar, apenas mover.
 - [ ] handleSyncContacts com workspace_id
 - [ ] delete_*_trials corrigidas
 - [ ] Política de retenção criada
-- [ ] Backups automáticos configurados
+- [x] Backups automáticos configurados (27/04/2026)
 
 ### Semana 3 — Operacional
 - [ ] Stack Supabase desligado

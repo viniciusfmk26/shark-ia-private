@@ -1,6 +1,7 @@
 # roadmap.md — Próximas Features e Melhorias
 
-> Visão de produto e prioridades. Separado do FIXES.md (que é plano técnico de segurança).
+> Visão de produto e prioridades. Separado do [[FIXES]] (que é plano técnico de segurança).
+> Relacionado: [[clientes]]
 > Atualizado em 26/04/2026.
 
 ---

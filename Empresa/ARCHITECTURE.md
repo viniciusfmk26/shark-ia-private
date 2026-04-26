@@ -1,6 +1,7 @@
 # ARCHITECTURE.md — Zapflix Tech
 
 > Mapa completo de infraestrutura, serviços e fluxos de dados.
+> Relacionado: [[CLAUDE]] | [[RUNBOOK]]
 > Atualizado em 25/04/2026.
 
 ---

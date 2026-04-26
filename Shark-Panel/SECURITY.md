@@ -2,7 +2,7 @@
 
 > Resultado da auditoria de segurança completa realizada em 25/04/2026.
 > **Nenhuma alteração foi feita durante a auditoria — tudo ainda está aberto.**
-> Use FIXES.md para o plano de correção.
+> Use [[FIXES]] para o plano de correção. Ver infra completa em [[ARCHITECTURE]].
 
 ---
 

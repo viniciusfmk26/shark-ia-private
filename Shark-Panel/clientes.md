@@ -1,6 +1,7 @@
 # clientes.md — Workspaces Ativos
 
 > Registro de todos os tenants do sistema Zapflix Tech.
+> Status das instâncias WhatsApp por tenant: [[instancias]]
 > Atualizado em 26/04/2026.
 
 ---

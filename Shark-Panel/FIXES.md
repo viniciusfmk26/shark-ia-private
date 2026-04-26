@@ -3,6 +3,7 @@
 > Plano priorizado com prompts prontos para o Claude Code executar.
 > **Cada semana é independente — pode ser executada separadamente.**
 > Antes de qualquer fix: fazer snapshot do servidor no painel do provedor.
+> Relacionado: [[SECURITY]] | [[RUNBOOK]]
 
 ---
 

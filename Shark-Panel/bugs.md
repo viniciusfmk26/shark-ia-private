@@ -1,7 +1,7 @@
 # bugs.md — Bugs e Problemas Conhecidos
 
 > Registro de bugs conhecidos que ainda não foram corrigidos.
-> Problemas de **segurança** estão em SECURITY.md.
+> Problemas de **segurança** estão em [[SECURITY]]. Plano de correção em [[FIXES]].
 > Atualizado em 26/04/2026.
 
 ---
@@ -11,7 +11,7 @@
 - Registrar bugs que foram identificados mas ainda não corrigidos
 - Incluir: descrição, impacto, como reproduzir, arquivo afetado
 - Mover para "Corrigidos" quando o fix for aplicado
-- Problemas de segurança vão em SECURITY.md, não aqui
+- Problemas de segurança vão em [[SECURITY]], não aqui
 
 ---
 

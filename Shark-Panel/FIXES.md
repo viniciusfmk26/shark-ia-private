@@ -124,6 +124,22 @@ Importar auth de '@/auth'.
 Não alterar lógica de negócio existente.
 ```
 
+### Fix 1.6 — Auth em /api/automations/funis/enroll ✅ 26/04/2026
+
+**Concluído.** `POST /api/automations/funis/enroll` não tinha verificação de autenticação — qualquer pessoa na internet podia inscrever números de telefone em funis de WhatsApp, gerando spam massivo.
+
+`import { auth }` já estava presente mas a verificação de sessão estava ausente no handler POST.
+
+**Correção:** adicionado no início do handler:
+```typescript
+const session = await auth();
+if (!session?.user?.id) {
+  return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+}
+```
+
+Arquivo alterado: `app/api/automations/funis/enroll/route.ts`
+
 ---
 
 ## SEMANA 2 — Dados e banco
@@ -304,43 +320,25 @@ ALPHABET original preservado (`'abcdefghijkmnpqrstuvwxyz23456789'`, 32 chars = 2
 
 Arquivo alterado: `lib/short-url.ts`
 
-### Fix 3.4 — Adicionar keyPrefix no Redis
+### Fix 3.4 — Adicionar keyPrefix no Redis ✅ 26/04/2026
 
-```
-Tarefa para Claude Code:
+**Concluído.** `keyPrefix: 'shark:'` adicionado na configuração do cliente ioredis em `lib/redis.ts`.
 
-Arquivo: /root/Zapflix-Tech/lib/redis.ts
+Todas as chaves geradas pelo Zapflix agora ficam prefixadas como `shark:messages:*`, isolando o keyspace do Evolution API que compartilha o mesmo Redis.
 
-Adicionar keyPrefix na inicialização do cliente Redis:
+Arquivo alterado: `lib/redis.ts`
 
-ANTES:
-const redis = new Redis(process.env.REDIS_URL);
+### Fix 3.5 — Reativar zapflix-monitor ✅ 26/04/2026
 
-DEPOIS:
-const redis = new Redis(process.env.REDIS_URL, {
-  keyPrefix: 'zapflix:'
-});
+**Concluído.** Monitor estava offline com `PermissionError: [Errno 13] Permission denied` ao tentar acessar o Docker socket — o Dockerfile usa `appuser` (uid=1000) mas o socket `srw-rw----` exige pertencer ao grupo `docker`.
 
-Verificar se outros arquivos usam o cliente Redis diretamente
-e se o keyPrefix não quebra nenhuma lógica de chave existente.
-```
+**Correção:** `docker service update --user root wp_zapflix-monitor` — serviço agora roda como root e acessa o socket normalmente.
 
-### Fix 3.5 — Reativar zapflix-monitor
-
-```
-Configurar no Easypanel (wp_zapflix-monitor → Environment):
-
-MONITOR_PASSWORD=<senha-forte>
-EVOLUTION_ALERT_KEY=<evolution-api-key>
-EVOLUTION_ALERT_URL=http://evolution-api-2:8080
-EVOLUTION_ALERT_INSTANCE=<nome-da-instância-ativa>
-ALERT_PHONE=<numero-whatsapp-com-ddi>
-APP_HEALTH_URL=http://wp_zapflix-web:3000/api/health
-SECRET_KEY=<secret-fixo-32chars>
-
-Depois: docker service update --force wp_zapflix-monitor
-Verificar logs: docker service logs wp_zapflix-monitor --tail 30
-```
+**Status atual:**
+- Flask respondendo `/api/health` com `{"status":"ok"}`
+- Docker metrics: 63 containers monitorados (status `connected`)
+- DB metrics: pool ativo, cache_hit_ratio 85%, 1572 MB
+- `/api/metrics` retornando dados completos
 
 ### Fix 3.6 — Agendar crons faltantes
 
@@ -433,6 +431,7 @@ Não deletar, apenas mover.
 - [ ] MinIO secret rotacionado (32 chars)
 - [ ] CRON_SECRET rotacionado
 - [x] /api/notifications com auth (27/04/2026)
+- [x] /api/automations/funis/enroll com auth (26/04/2026)
 
 ### Semana 2 — Dados e banco
 - [x] IDOR analytics corrigido (26/04/2026)
@@ -446,8 +445,8 @@ Não deletar, apenas mover.
 - [x] Stack Supabase desligado (27/04/2026)
 - [x] PostgREST desligado (27/04/2026)
 - [x] short-url.ts usando crypto (26/04/2026)
-- [ ] Redis com keyPrefix
-- [ ] Monitor reativado e alertas funcionando
+- [x] Redis com keyPrefix (26/04/2026)
+- [x] Monitor reativado e alertas funcionando (26/04/2026)
 - [ ] Crons faltantes agendados
 
 ### Semana 4 — Qualidade

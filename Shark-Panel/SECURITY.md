@@ -74,7 +74,7 @@ Acesso de escrita ao repositório. Qualquer pessoa com acesso ao servidor pode i
 /api/migrate/reset-all-data        → wipe do banco sem auth
 /api/migrate/reset-admin-password  → reset de senha sem auth
 /api/notifications (GET/PATCH) → ✅ auth adicionada em 27/04/2026 (commit 67ca9470)
-/api/automations/funis/enroll      → spam WhatsApp sem auth
+/api/automations/funis/enroll  → ✅ auth adicionada em 26/04/2026 (commit 2dbfde03)
 ```
 
 **Mitigação:** adicionar `requireSuperAdmin()` ou verificação de `CRON_SECRET` em todos esses endpoints.
@@ -320,7 +320,7 @@ Schema sem auditabilidade. Onboarding e disaster recovery comprometidos.
 | C1.2 | PostgREST público | 🔴 Crítico | ✅ Corrigido (27/04/2026) |
 | C1.3 | PGRST_JWT_SECRET vazado | 🔴 Crítico | ✅ Corrigido (27/04/2026) |
 | C1.4 | GitHub PAT em texto plano | 🔴 Crítico | ⏳ Aberto |
-| C1.5 | Endpoints sem auth | 🔴 Crítico | ⚠️ Parcial — /notifications corrigido (27/04/2026); /automations/funis/enroll pendente |
+| C1.5 | Endpoints sem auth | 🔴 Crítico | ⚠️ Parcial — /notifications (27/04/2026) e /automations/funis/enroll (26/04/2026) corrigidos; /debug/* e /migrate/* pendentes |
 | C1.6 | Cron secret hardcoded | 🔴 Crítico | ✅ Corrigido (26/04/2026) |
 | C1.7 | MinIO credencial fraca | 🔴 Crítico | ⏳ Aberto |
 | C1.8 | Supabase Kong JWT 2036 | 🔴 Crítico | ✅ Corrigido (27/04/2026) |
@@ -331,10 +331,10 @@ Schema sem auditabilidade. Onboarding e disaster recovery comprometidos.
 | C2.5 | RLS decorativa | 🔴 Crítico | ⏳ Aberto |
 | M1 | Zero backups | 🟠 Médio | ✅ Corrigido (27/04/2026) |
 | M2 | short_links PRNG | 🟠 Médio | ✅ Corrigido (26/04/2026) |
-| M3 | Redis sem keyPrefix | 🟠 Médio | ⏳ Aberto |
-| M4 | Banco sem retenção | 🟠 Médio | ⏳ Aberto |
+| M3 | Redis sem keyPrefix | 🟠 Médio | ✅ Corrigido (26/04/2026) — keyPrefix 'shark:' |
+| M4 | Banco sem retenção | 🟠 Médio | ✅ Corrigido (26/04/2026) |
 | M5 | automations DEFAULT errado | 🟠 Médio | ⏳ Aberto |
-| M6 | Monitor offline | 🟠 Médio | ⏳ Aberto |
+| M6 | Monitor offline | 🟠 Médio | ✅ Corrigido (26/04/2026) — running como root, 63 containers monitorados |
 | M7 | Supabase legado rodando | 🟠 Médio | ✅ Corrigido (27/04/2026) |
 | M8 | MAX_PRICE hardcoded | 🟠 Médio | ⏳ Aberto |
 | M9 | Migrations sem registro | 🟠 Médio | ⏳ Aberto |

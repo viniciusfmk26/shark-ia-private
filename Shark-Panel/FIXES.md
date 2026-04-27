@@ -505,3 +505,37 @@ Remove a sessão do array `workspace_settings.settings.security.sessions` via js
 - PUT: upsert de todos os pares enviados no body
 - Auth via `isSuperAdmin()` (config global, sem workspace_id)
 - Campos suportados: `amplopay_public_key`, `amplopay_secret_key`, `ga4_id`, `meta_pixel_id`, `meta_capi_token`, `head_scripts`, `body_scripts`, `fee_percent`, `fee_fixed`, `pix_key`, `support_whatsapp`, `webhook_secret`
+
+---
+
+### Decisões estratégicas 27/04/2026
+
+**Domínio novo registrado:** sharkpanel.com.br
+
+**Estrutura de subdomínios planejada:**
+- sharkpanel.com.br → site institucional
+- app.sharkpanel.com.br → painel dos clientes
+- admin.sharkpanel.com.br → painel master (Vinicius)
+- checkout.sharkpanel.com.br → links de pagamento
+- api.sharkpanel.com.br → API
+
+**Auditoria master vs cliente concluída:**
+- 191 tabelas no banco
+- 159 tabelas isoladas por workspace ✅
+- 29/29 APIs master protegidas ✅
+- 13 páginas no painel master
+- Componentes órfãos: ElevenLabsTab, PlansModulesTab
+
+**Problemas encontrados (prioridade):**
+1. UUID superadmin hardcoded em 4+ arquivos
+2. Guard /master/* só client-side
+3. 4 implementações diferentes do check superadmin
+4. Settings espalhadas em 3 lugares diferentes
+5. audit-log duplicado (singular/plural)
+6. /workspaces-map no painel cliente (deveria ser master)
+
+**Plano de migração para sharkpanel.com.br:**
+Etapa 1 — Corrigir autenticação superadmin
+Etapa 2 — Configurar subdomínios no Easypanel
+Etapa 3 — Atualizar código e variáveis de ambiente
+Etapa 4 — Redirecionar appcineflick.com.br

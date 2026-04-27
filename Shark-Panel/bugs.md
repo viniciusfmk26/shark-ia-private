@@ -154,6 +154,9 @@ Automações criadas sem `workspace_id` explícito ficam no workspace do Superad
 |----|-----------|-------------|--------|
 | — | Auth ausente em /api/debug/* e /api/migrate/* | 26/04/2026 | b102cb02 |
 | — | Cron secret hardcoded 'zapflix2026' | 26/04/2026 | — |
+| B1 | Anti-ban quebrado — queries SQL filtravam `direction='outbound'` mas banco usa `'out'`, contadores sempre 0 e limite diário nunca disparava (worker.ts linhas 3692, 4592, 4601) | 27/04/2026 | fe65a0ca |
+| B2 | AI Agent histórico vazio — SELECT usava coluna `body` (correta é `text`) e filtro JS comparava com `'outbound'` (worker.ts linhas 3299/3306) | 27/04/2026 | e2f5ba16 |
+| B3 | Cross-tenant no AI Agent — query `app_flow_nodes JOIN ai_writing_agents` sem filtro de `workspace_id`, prompt do agente vazava nodes de outros tenants (worker.ts linha 3390) | 27/04/2026 | c9d90b87 |
 
 ---
 

@@ -25,10 +25,22 @@
 - Problema: 4 implementações diferentes
 
 ## Componentes órfãos
-- ElevenLabsTab → nunca importado
-- PlansModulesTab → nunca importado
-- 15+ componentes de inbox sem uso
-- flow-editor de automações sem uso
+Limpeza realizada em 27/04/2026 — 8 componentes removidos (commit 3d970cbc):
+- components/settings/tabs/elevenlabs-tab.tsx
+- components/settings/tabs/plans-modules-tab.tsx
+- components/shared/internal-chat.tsx
+- components/shared/chat-view.tsx (apenas em barrel não usado)
+- components/shared/ai-chat-assistant.tsx
+- components/shared/data-table.tsx (apenas em barrel não usado)
+- components/automations/tabs/followup-dashboard-tab.tsx
+- components/dashboard/global-alerts.tsx
+
+`components/shared/index.ts` atualizado para remover refs aos arquivos deletados.
+
+Falsos positivos da auditoria anterior (estavam sendo usados):
+- ai-mode-selector, ai-autonomous-banner, ai-copilot-panel, ai-suggestion-panel → todos importados em components/inbox/chat-view.tsx
+- components/automations/flow-editor.tsx → usado em automations/tabs/fluxos-tab.tsx
+- components/audit-logs/json-viewer.tsx → usado em audit-log-details-drawer.tsx
 
 ## Zona mista (problemas)
 - /api/admin/* → terceira camada órfã

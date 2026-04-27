@@ -75,18 +75,19 @@ inbox, contacts, groups, automations, guided-funnels, campaigns, templates, tick
 
 ## Suspeitas fortes de duplicação dentro do Cliente
 
-1. **`/ai` × `/ai-studio` × `/ai-assistant`** — 3 superfícies de IA, todas com chat/agentes.
-2. **`/reseller` × `/reseller-dashboard`** — ambos painel do próprio afiliado, com headers diferentes ("Meu Painel" vs "Dashboard Afiliado").
-3. **`/audit-log` × `/audit-logs`** — `/audit-logs` cai em mock quando API falha. **Resolvido em 27/04/2026** (ver bugs.md): sidebar agora aponta para `/audit-log` e `/audit-logs` redireciona.
-4. ~~**`/monitoring`** — duplica 3 tabs de settings no rodapé e estava órfão do menu.~~ **Resolvido em 27/04/2026** (commit `ce1a3617`): bloco "Configurações do Sistema" removido e item "Monitoramento" adicionado na seção Analytics do sidebar.
+1. ~~**`/ai` × `/ai-studio` × `/ai-assistant`**~~ — investigado em 27/04/2026: `/ai` (config + 3 tabs) e `/ai-studio` (editor visual ReactFlow) consomem APIs **separadas** (`/api/ai/*` vs `/api/ai-studio/*`), são páginas legítimas. `/ai-assistant` era órfã do sidebar; **plugada como "Assistente IA"** na seção IA (commit `243de1b6`).
+2. ~~**`/reseller` × `/reseller-dashboard`**~~ — **Resolvido em 27/04/2026** (commit `243de1b6`): features ricas do `/reseller-dashboard` (níveis, gráfico, clientes) migradas para `/reseller`; `/reseller-dashboard` virou redirect.
+3. ~~**`/audit-log` × `/audit-logs`**~~ — **Resolvido em 27/04/2026** (commit `07923218`).
+4. ~~**`/monitoring`**~~ — **Resolvido em 27/04/2026** (commit `ce1a3617`).
 
 ---
 
 ## Recomendações priorizadas
 
 1. ~~Investigar `/audit-logs`~~ — feito (redirect) em 27/04/2026 (commit `07923218`).
-2. Decidir destino de `/reseller` vs `/reseller-dashboard` — manter um.
-3. Auditar `/ai` × `/ai-studio` × `/ai-assistant` — definir responsabilidade de cada um.
+2. ~~Decidir destino de `/reseller` vs `/reseller-dashboard`~~ — feito em 27/04/2026 (commit `243de1b6`); features migradas para `/reseller`, dashboard virou redirect.
+3. ~~Auditar `/ai` × `/ai-studio` × `/ai-assistant`~~ — feito em 27/04/2026 (commit `243de1b6`); APIs diferentes (não são duplicação real); `/ai-assistant` plugada no sidebar.
 4. ~~Remover tabs de settings duplicadas do rodapé de `/monitoring`~~ — feito em 27/04/2026 (commit `ce1a3617`); página agora está no menu (Analytics).
 5. Adicionar no cliente: blacklist do workspace + página "Meu Plano".
 6. Adicionar no master: visão global de tickets, trials, jobs e cupons.
+7. Avaliar `/resellers` (admin client de revendedores) — duplica `/master/revendedores`. Decidir se workspace-scoped admin tem caso de uso real.

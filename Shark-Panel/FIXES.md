@@ -393,6 +393,30 @@ Aplicado em produção em 27/04/2026. Tabela jobs ficou com 1 trigger apenas.
 
 Preservados no lugar: `backup.sh` (ativo, Abr/2026), `superz_key` / `superz_key.pub` (chaves SSH).
 
+### Fix 4.4 — 4 fixes de limpeza de código ✅ 27/04/2026
+
+**Concluído.** 4 commits sem rebuild intermediário, 1 rebuild único no final.
+
+**Fix 4.4a — api_key via querystring removido de /api/rotation**
+- `app/api/rotation/_shared.ts`: função `isAuthorized` aceitava `?api_key=` na URL além do header `x-api-key`.
+- Removido `fromQuery` — somente header é aceito agora. Evita vazamento de credencial em logs de acesso HTTP.
+
+**Fix 4.4b — Lockfile conflitante removido**
+- `package-lock.json` (14.472 linhas) coexistia com `pnpm-lock.yaml`. O Dockerfile prioriza `pnpm-lock.yaml`.
+- `package-lock.json` deletado. Build usa exclusivamente pnpm.
+
+**Fix 4.4c — package.json name corrigido**
+- `"name": "my-v0-project"` (resíduo do gerador v0) → `"name": "shark-panel"`.
+
+**Fix 4.4d — Dead code BullMQ removido**
+- `lib/evolution/client.ts` — cliente HTTP para Evolution API em duplicata da implementação em `lib/groups/evolution.ts`. Zero importadores externos.
+- `lib/queue/automation-queue.ts` — fila BullMQ (o projeto usa Postgres SKIP LOCKED, não BullMQ).
+- `scripts/test-worker.ts` — script de teste que importava `automation-queue`; também removido.
+
+Commits: `0a760e32`, `7de6b24a`, `1ea89237`, `52a3ff2f`, `9397dff1`
+
+---
+
 ### Fix M9 — Registrar migrations históricas na tabela _migrations ✅ 27/04/2026
 
 **Contexto:** A tabela `_migrations` já existia com estrutura diferente da planejada (coluna `name` em vez de `filename`, mais coluna `executed_at`). Havia 50 registros de 95 arquivos — 45 migrations aplicadas manualmente sem registro.
@@ -442,6 +466,7 @@ Operação exclusivamente no banco (sem alteração de código no repositório).
 - [x] Triggers duplicados removidos (27/04/2026)
 - [x] Arquivos históricos arquivados (27/04/2026)
 - [x] SECURITY.md atualizado com status dos fixes (27/04/2026)
+- [x] 4 fixes de limpeza: api_key querystring, lockfile, package name, dead code BullMQ (27/04/2026)
 
 ---
 

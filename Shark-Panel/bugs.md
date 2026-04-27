@@ -148,6 +148,47 @@ Automações criadas sem `workspace_id` explícito ficam no workspace do Superad
 
 ---
 
+### BUG-009 — Sidebar do cliente: itens duplicados, mal categorizados e expostos demais
+
+**Arquivo:** `components/layout/sidebar-nav.tsx`
+**Severidade:** Média (UX / risco baixo de exposição)
+**Identificado em:** 27/04/2026
+
+**Descrição (auditoria sem alteração):**
+
+Itens com `superAdminOnly` (corretos, só você vê):
+- L117 `/sigma` (em "Vendas")
+- L200 `/workspaces-map` (em "Sistema")
+- L675-691 `/master` ("Painel Master", solto fora de seção)
+
+Itens expostos a roles que não deveriam:
+- L196 **Loja de Módulos** (`/store`) — sem `roles`, aparece pra `viewer`. Devia ser `owner/admin`.
+- L199 **Documentação Webchat** (`/webchat-docs`) — doc técnica como item de menu. Devia virar link dentro de `/webchat-settings`.
+
+Duplicações / redundâncias:
+- L158/L177 — `/gamification` listado 2× ("Minha Performance" para agent, "Performance" para owner/admin).
+- L187/L188 — Revendedor tem dois dashboards (`/reseller-dashboard` e `/reseller`) com propósito sobreposto.
+- L136 **Follow-up Automático** (`/automations/follow-up`) — sub-rota de Automações listada como item de primeiro nível.
+
+Categorização inconsistente:
+- "Sistema" virou lixeira: Loja + Canais (Instâncias WhatsApp / Webchat) + Configurações + técnico (Webhooks / API / Audit) + Ajuda.
+- "Vendas" mistura catálogo, IPTV e operacional financeiro.
+- L179 **Meu Setup** está em "Equipe" mas é setup pessoal — devia estar em "Minha Conta".
+- **Painel Master** renderizado fora de qualquer `CollapsibleSection` (L676).
+
+Gating por módulo errado:
+- L114-120 — Trials, Apps, Planos, Sigma e **Faturamento** todos com `module: 'iptv_trials'`. Desligar `iptv_trials` esconde Faturamento (não deveria).
+- L111 **Vitrine Netflix** com `module: null` — deveria ter gate coerente, e o nome usa marca registrada num produto whitelabel.
+
+Ordem:
+- "Analytics" cai entre "Minha Conta" (agent) e "Equipe" — fora de lugar; faz mais sentido junto a Vendas/Equipe.
+
+**Impacto:** Cliente normal vê itens que não deveria ver (ou em lugar errado), e o menu fica mais confuso do que o produto realmente é. Não há vazamento de dados — apenas exposição de entradas de menu e UX ruim.
+
+**Fix planejado:** a definir (reorganização de `NAV_CATEGORIES` + ajustes de `roles`/`module`/`superAdminOnly` por item).
+
+---
+
 ## Bugs corrigidos
 
 | ID | Descrição | Corrigido em | Commit |

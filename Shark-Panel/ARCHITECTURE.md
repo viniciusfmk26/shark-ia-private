@@ -64,7 +64,7 @@ Falsos positivos da auditoria anterior (estavam sendo usados):
 ## Zona mista (problemas)
 - /api/admin/* → terceira camada órfã
 - /workspaces-map → no cliente mas é master (gated por `useSuperAdminGuard()` na page + `superAdminOnly: true` na sidebar — verificado 27/04/2026)
-- /audit-log e /audit-logs → duplicado; resolvido em 27/04/2026 com redirect 308 `/audit-logs → /audit-log` em `next.config.mjs` (sidebar usa o singular). Páginas mantidas para não quebrar links antigos.
+- /audit-log e /audit-logs → duplicado; em 27/04/2026 redirect invertido para `/audit-log → /audit-logs` em `next.config.mjs` (sidebar agora usa o plural — página mais completa: 20.873 bytes vs 12.026). Páginas mantidas para não quebrar links antigos.
 - checkout-admin → no cliente mas nome sugere master
 
 ## Favicon

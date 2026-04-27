@@ -78,15 +78,15 @@ inbox, contacts, groups, automations, guided-funnels, campaigns, templates, tick
 1. **`/ai` × `/ai-studio` × `/ai-assistant`** — 3 superfícies de IA, todas com chat/agentes.
 2. **`/reseller` × `/reseller-dashboard`** — ambos painel do próprio afiliado, com headers diferentes ("Meu Painel" vs "Dashboard Afiliado").
 3. **`/audit-log` × `/audit-logs`** — `/audit-logs` cai em mock quando API falha. **Resolvido em 27/04/2026** (ver bugs.md): sidebar agora aponta para `/audit-log` e `/audit-logs` redireciona.
-4. **`/monitoring`** — nome OK (tem conteúdo real de monitoramento), mas duplica 3 tabs de settings no rodapé (notifications/security/webhooks). Já existem em `/settings`. Refactor pendente para limpar o rodapé. **Não está no menu** — orfã, acessível só por URL direta.
+4. ~~**`/monitoring`** — duplica 3 tabs de settings no rodapé e estava órfão do menu.~~ **Resolvido em 27/04/2026** (commit `ce1a3617`): bloco "Configurações do Sistema" removido e item "Monitoramento" adicionado na seção Analytics do sidebar.
 
 ---
 
 ## Recomendações priorizadas
 
-1. ~~Investigar `/audit-logs`~~ — feito (redirect) em 27/04/2026.
+1. ~~Investigar `/audit-logs`~~ — feito (redirect) em 27/04/2026 (commit `07923218`).
 2. Decidir destino de `/reseller` vs `/reseller-dashboard` — manter um.
 3. Auditar `/ai` × `/ai-studio` × `/ai-assistant` — definir responsabilidade de cada um.
-4. Remover tabs de settings duplicadas do rodapé de `/monitoring` (notifications, security, webhooks).
+4. ~~Remover tabs de settings duplicadas do rodapé de `/monitoring`~~ — feito em 27/04/2026 (commit `ce1a3617`); página agora está no menu (Analytics).
 5. Adicionar no cliente: blacklist do workspace + página "Meu Plano".
 6. Adicionar no master: visão global de tickets, trials, jobs e cupons.

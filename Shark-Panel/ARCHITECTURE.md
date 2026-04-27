@@ -4,6 +4,15 @@
 - (master)/master/* → painel superadmin
 - (dashboard)/* → painel cliente (60 páginas)
 
+## Hosts e telas de login
+- `app.sharkpanel.com.br` → painel cliente, login em `/login`
+- `admin.sharkpanel.com.br` → painel superadmin, login em `/master-login`
+  - `/login` redireciona para `/master-login` (next.config.mjs)
+  - `/` redireciona para `/master`
+  - rotas não autenticadas → middleware envia para `/master-login` preservando o host (constrói URL via header `host` + `x-forwarded-proto`)
+  - `/master-login` valida `isSuperAdmin` via `/api/me/permissions` após signIn; se não for superadmin, signOut + erro "Acesso negado"
+- `app.sharkpanel.com.br/master-login` → 307 para `/login` (não vaza login admin no domínio cliente)
+
 ## Site institucional (separado do painel)
 - Serviço Docker Swarm: `wp_shark-landing`
 - Imagem: `shark-landing:latest` (nginx:alpine + index.html estático)

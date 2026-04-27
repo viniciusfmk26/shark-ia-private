@@ -545,3 +545,9 @@ Etapa 4 — Redirecionar appcineflick.com.br
 - `app/api/cron/check-instance-health/route.ts`: alerta WhatsApp "ALERTA SHARK PANEL"
 - `app/api/cron/check-worker-alerts/route.ts`: alerta WhatsApp "ALERTA SHARK PANEL"
 - Build OK, deploy em wp_zapflix-web, health 200 em https://app.sharkpanel.com.br
+
+**Redirect admin.sharkpanel.com.br → /master (27/04/2026):**
+- `next.config.mjs`: redirect 307 com `has: [{type:'host', value:'admin.sharkpanel.com.br'}]` em `/` → `/master`
+- Verificado dentro do container: `curl -H "Host: admin.sharkpanel.com.br" /` retorna 307 → `/master`
+- ⚠️ Domínio `admin.sharkpanel.com.br` ainda não está roteado para `wp_zapflix-web` no Easypanel/Traefik (404 público). Adicionar host no painel do serviço para o redirect ser atingível externamente.
+- Necessário usar `docker service update --force` quando reusar tag `:latest` (swarm não detecta nova digest local sozinho)

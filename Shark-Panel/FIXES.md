@@ -566,3 +566,13 @@ Padrão: `logAudit({ workspaceId, userId, action: 'namespace.verb', entityType, 
 Mantidos sem alteração: `master/instances/[id]/move` (já usa `logAudit`) e `admin/workspaces-map/move-instance` (grava em `audit_logs` dentro da transação — trocar por `logAudit` quebraria atomicidade).
 
 Verificado pós-deploy: chunks compilados contêm strings únicas adicionadas (`workspace.blocked`, `reseller.payout`, `platform.settings_updated`); 31 chunks fazem referência a `logAudit`. Build SHA: `2e9b77e6`. Smoke tests: `/api/health` 200, `/master` 307→login.
+
+**Consolidar settings do cliente em /settings (27/04/2026):**
+
+Resolve item 4 da lista de problemas acima ("Settings espalhadas em 3 lugares diferentes"). Antes: aba Geral/IA/Pagamentos/Whitelabel em `/settings`, aba Notificações/Segurança/Webhooks em `/monitoring`, aba PresetMessages em `/automations`; tabs `ElevenLabsTab` e `PlansModulesTab` órfãs. Usuário não sabia onde achar cada coisa.
+
+Agora `/settings` (`app/(dashboard)/settings/page.tsx`) tem 8 cards/abas em ordem lógica: Geral · Whitelabel · IA · Pagamentos · Notificações · Segurança · Webhooks · Mensagens. Categorias adicionadas com ícones `Bell`, `Shield`, `Webhook`, `MessageSquare`. `validTabs` ampliado para os 8 valores; default tab passou de `whitelabel` para `general`. `TabsContent` plugado em cada nova aba reutilizando os componentes existentes em `components/settings/tabs/{notifications,security,webhooks,preset-messages}-tab.tsx` — comportamento dos componentes individuais (estado, save, schema) preservado, só consolidação de UI.
+
+`/monitoring` e `/automations` ficam com os mesmos componentes de settings ainda renderizados (não removidos para evitar quebrar bookmarks/links existentes). Componentes órfãos `ElevenLabsTab`/`PlansModulesTab` continuam não plugados — fora do escopo.
+
+Build SHA: `3332dbb1`. Smoke test: `/api/health` 200.

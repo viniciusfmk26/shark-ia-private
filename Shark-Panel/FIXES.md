@@ -539,3 +539,9 @@ Etapa 1 — Corrigir autenticação superadmin
 Etapa 2 — Configurar subdomínios no Easypanel
 Etapa 3 — Atualizar código e variáveis de ambiente
 Etapa 4 — Redirecionar appcineflick.com.br
+
+**Rebranding frontend Zapflix → Shark Panel (27/04/2026):**
+- `public/manifest.json`: name/short_name → "Shark Panel" (PWA install/home screen)
+- `app/api/cron/check-instance-health/route.ts`: alerta WhatsApp "ALERTA SHARK PANEL"
+- `app/api/cron/check-worker-alerts/route.ts`: alerta WhatsApp "ALERTA SHARK PANEL"
+- Build OK, deploy em wp_zapflix-web, health 200 em https://app.sharkpanel.com.br

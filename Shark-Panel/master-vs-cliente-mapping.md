@@ -68,7 +68,7 @@ inbox, contacts, groups, automations, guided-funnels, campaigns, templates, tick
 - IPTV Plans/Apps global
 
 ### ❌ Falta no Cliente
-- Blacklist do workspace (só existe global)
+- ~~Blacklist do workspace (só existe global)~~ — **Resolvido em 27/04/2026**: página `/blacklist` plugada na seção Atendimento do sidebar (após Tickets). Usa `contact_blacklist` (workspace_id + phone_e164) via API existente `/api/campaigns/blacklist` (GET/POST/DELETE) e `/api/campaigns/blacklist/import` (lote). Owner/admin only. Aplicada em envio de campanhas e cron de follow-up. Não interfere na `global_blacklist` (master).
 - Página "Meu Plano" (cliente não tem visão clara do plano/limites — só `/upgrade`)
 
 ---
@@ -88,6 +88,6 @@ inbox, contacts, groups, automations, guided-funnels, campaigns, templates, tick
 2. ~~Decidir destino de `/reseller` vs `/reseller-dashboard`~~ — feito em 27/04/2026 (commit `243de1b6`); features migradas para `/reseller`, dashboard virou redirect.
 3. ~~Auditar `/ai` × `/ai-studio` × `/ai-assistant`~~ — feito em 27/04/2026 (commit `243de1b6`); APIs diferentes (não são duplicação real); `/ai-assistant` plugada no sidebar.
 4. ~~Remover tabs de settings duplicadas do rodapé de `/monitoring`~~ — feito em 27/04/2026 (commit `ce1a3617`); página agora está no menu (Analytics).
-5. Adicionar no cliente: blacklist do workspace + página "Meu Plano".
+5. ~~Adicionar no cliente: blacklist do workspace~~ — feito em 27/04/2026 (página `/blacklist`). Resta página "Meu Plano".
 6. Adicionar no master: visão global de tickets, trials, jobs e cupons.
 7. Avaliar `/resellers` (admin client de revendedores) — duplica `/master/revendedores`. **Mantido em 27/04/2026**: plugado no sidebar como "Meus Revendedores" e aprovação/rejeição de saque removida (fica exclusiva no master).

@@ -63,6 +63,13 @@ Falsos positivos da auditoria anterior (estavam sendo usados):
 
 ## Zona mista (problemas)
 - /api/admin/* → terceira camada órfã
-- /workspaces-map → no cliente mas é master
-- /audit-log e /audit-logs → duplicado
+- /workspaces-map → no cliente mas é master (gated por `useSuperAdminGuard()` na page + `superAdminOnly: true` na sidebar — verificado 27/04/2026)
+- /audit-log e /audit-logs → duplicado; resolvido em 27/04/2026 com redirect 308 `/audit-logs → /audit-log` em `next.config.mjs` (sidebar usa o singular). Páginas mantidas para não quebrar links antigos.
 - checkout-admin → no cliente mas nome sugere master
+
+## Favicon
+- Convenção `app/icon.tsx` + `app/apple-icon.tsx` renderizam 🦈 via `next/og` (PNG dinâmico).
+- `app/layout.tsx` só define `metadata.icons` quando há whitelabel ativo; caso contrário o Next usa as rotas auto-geradas `/icon` e `/apple-icon`.
+- `whitelabel-meta.tsx#resetFavicon` aponta para `/icon` (não mais `/icon.svg` legado do Next).
+- `/icon` e `/apple-icon` estão em `EXCLUDED_PREFIXES` do `middleware.ts` (favicon precisa carregar mesmo sem sessão).
+- Arquivos legados em `public/` (icon.svg, icon-*-32x32.png, apple-icon.png — todos com o "N" do Next) seguem no repo mas não são mais referenciados pelo HTML.

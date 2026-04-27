@@ -590,3 +590,24 @@ Build SHA: `3332dbb1`. Smoke test: `/api/health` 200.
 - Lógica de auth (`signIn` credentials + `check-status` para pending/rejected) preservada — somente JSX/classes alterados
 
 Build SHA: `a42d219c`. Smoke test: `/api/health` 200, deploy convergiu via `docker service update --force`.
+
+**Migração de tema verde → ciano — Etapa 1: CSS variables (27/04/2026):**
+
+`app/globals.css` é o único arquivo de estilo importado pelo app (`app/layout.tsx:9`). Existe `styles/globals.css` órfão (não importado). O projeto usa **Tailwind v4** sem `tailwind.config.ts` — cores são CSS variables expostas via bloco `@theme inline { --color-*: var(--*) }`.
+
+Bloco `.dark` recebeu 6 substituições (verde → ciano), todas dentro de `app/globals.css`:
+
+| Var | Antes | Depois |
+|---|---|---|
+| `--primary` | `#16a34a` | `#06b6d4` |
+| `--ring` | `#16a34a` | `#06b6d4` |
+| `--sidebar-primary` | `#16a34a` | `#06b6d4` |
+| `--sidebar-ring` | `#16a34a` | `#06b6d4` |
+| `--chart-1` | `#22c55e` | `#22d3ee` |
+| `::selection` bg | `#16a34a33` | `#06b6d433` |
+
+Cobre: `bg-primary`, `text-primary`, `border-primary`, focus rings (`*:focus-visible`), seleção de texto, sidebar primary tokens e charts ricos. **Não cobre os ~99 arquivos JSX que usam `emerald-*` literal** (item ativo do sidebar `bg-emerald-500/10 text-emerald-400`, badges, avatar fallback, etc.) — isso fica para a etapa 2 (find-and-replace de classes Tailwind).
+
+Whitelabel não interfere: `--brand-primary` (consumido apenas pela barrinha do item ativo no sidebar) é separado do token `--primary` e segue sendo controlado por `whitelabel_settings.primary_color`.
+
+Build SHA: `a150d85d`. Smoke test: `/api/health` 200, deploy convergiu via `docker service update --force`.

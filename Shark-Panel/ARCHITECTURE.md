@@ -4,6 +4,15 @@
 - (master)/master/* → painel superadmin
 - (dashboard)/* → painel cliente (60 páginas)
 
+## Site institucional (separado do painel)
+- Serviço Docker Swarm: `wp_shark-landing`
+- Imagem: `shark-landing:latest` (nginx:alpine + index.html estático)
+- Código: `/root/shark-landing/` (HTML/CSS puro, sem dependências externas)
+- Rede: `easypanel`
+- Domínio futuro: `sharkpanel.com.br` (apontamento pendente)
+- CTA principal: `https://app.sharkpanel.com.br`
+- NÃO compartilha código nem build com `wp_zapflix-web` — totalmente isolado
+
 ## Banco de dados
 - 191 tabelas total
 - 159 workspace-scoped

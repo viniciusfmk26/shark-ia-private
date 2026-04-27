@@ -415,9 +415,9 @@ Operação exclusivamente no banco (sem alteração de código no repositório).
 - [x] /api/migrate/* com requireSuperAdmin (26/04/2026)
 - [x] Cron secret hardcoded removido do código (26/04/2026)
 - [x] Cron secret hardcoded removido do crontab do servidor (27/04/2026)
-- [ ] GitHub PAT revogado e renovado
-- [ ] MinIO secret rotacionado (32 chars)
-- [ ] CRON_SECRET rotacionado
+- [x] GitHub PAT revogado e renovado
+- [x] MinIO secret rotacionado (32 chars)
+- [x] CRON_SECRET rotacionado
 - [x] /api/notifications com auth (27/04/2026)
 - [x] /api/automations/funis/enroll com auth (26/04/2026)
 

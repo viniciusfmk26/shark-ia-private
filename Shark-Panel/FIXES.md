@@ -364,22 +364,11 @@ Confirmar frequência adequada para cada cron antes de adicionar.
 
 ## SEMANA 4 — Qualidade e performance
 
-### Fix 4.1 — Corrigir automations.workspace_id DEFAULT
+### Fix 4.1 — Corrigir automations.workspace_id DEFAULT ✅ 27/04/2026
 
-```
-Tarefa para Claude Code:
-
-Criar migration: /root/Zapflix-Tech/migrations/097_fix_automations_default.sql
-
-ALTER TABLE automations
-ALTER COLUMN workspace_id DROP DEFAULT;
-
--- Verificar que não há automações com o UUID errado
-SELECT COUNT(*) FROM automations
-WHERE workspace_id = '00000000-0000-0000-0000-000000000001';
-
-Registrar na tabela _migrations após aplicar.
-```
+Migration aplicada: `migrations/097_fix_automations_workspace_default.sql`
+`ALTER TABLE automations ALTER COLUMN workspace_id DROP DEFAULT;`
+Verificado: 0 automações com o UUID do superadmin (sem contaminação de dados).
 
 ### Fix 4.2 — Remover triggers duplicados em jobs
 
@@ -450,7 +439,7 @@ Não deletar, apenas mover.
 - [ ] Crons faltantes agendados
 
 ### Semana 4 — Qualidade
-- [ ] automations DEFAULT corrigido
+- [x] automations DEFAULT corrigido (27/04/2026)
 - [ ] Triggers duplicados removidos
 - [ ] Arquivos históricos arquivados
 - [ ] SECURITY.md atualizado com status dos fixes
@@ -473,3 +462,22 @@ Não deletar, apenas mover.
 **Tabela:** `app_problems_learned` (18 registros existentes, schema com `times_detected`, `success_rate`, `source: manual|ai_detected|agent_reported`)
 
 **Nota:** a aba Problemas tem estado e fetch no frontend mas não tem TabsTrigger nem TabsContent na UI — a rota estava pronta antes da UI ser completada.
+
+---
+
+### Rota /api/settings/sessions/revoke ✅ 27/04/2026
+
+`app/api/settings/sessions/revoke/route.ts` — POST `{ sessionId }`
+
+Remove a sessão do array `workspace_settings.settings.security.sessions` via jsonb_agg com filtro por id. Auth via `getActiveWorkspaceId()`. Necessária para o botão "Revoke" na aba Security de Settings.
+
+---
+
+### Rota /api/checkout/config ✅ 27/04/2026
+
+`app/api/checkout/config/route.ts` — GET e PUT
+
+- GET: retorna todos os registros de `checkout_config` como objeto `{ key: value }`
+- PUT: upsert de todos os pares enviados no body
+- Auth via `isSuperAdmin()` (config global, sem workspace_id)
+- Campos suportados: `amplopay_public_key`, `amplopay_secret_key`, `ga4_id`, `meta_pixel_id`, `meta_capi_token`, `head_scripts`, `body_scripts`, `fee_percent`, `fee_fixed`, `pix_key`, `support_whatsapp`, `webhook_secret`

@@ -148,47 +148,6 @@ Automações criadas sem `workspace_id` explícito ficam no workspace do Superad
 
 ---
 
-### BUG-009 — Sidebar do cliente: itens duplicados, mal categorizados e expostos demais
-
-**Arquivo:** `components/layout/sidebar-nav.tsx`
-**Severidade:** Média (UX / risco baixo de exposição)
-**Identificado em:** 27/04/2026
-
-**Descrição (auditoria sem alteração):**
-
-Itens com `superAdminOnly` (corretos, só você vê):
-- L117 `/sigma` (em "Vendas")
-- L200 `/workspaces-map` (em "Sistema")
-- L675-691 `/master` ("Painel Master", solto fora de seção)
-
-Itens expostos a roles que não deveriam:
-- L196 **Loja de Módulos** (`/store`) — sem `roles`, aparece pra `viewer`. Devia ser `owner/admin`.
-- L199 **Documentação Webchat** (`/webchat-docs`) — doc técnica como item de menu. Devia virar link dentro de `/webchat-settings`.
-
-Duplicações / redundâncias:
-- L158/L177 — `/gamification` listado 2× ("Minha Performance" para agent, "Performance" para owner/admin).
-- L187/L188 — Revendedor tem dois dashboards (`/reseller-dashboard` e `/reseller`) com propósito sobreposto.
-- L136 **Follow-up Automático** (`/automations/follow-up`) — sub-rota de Automações listada como item de primeiro nível.
-
-Categorização inconsistente:
-- "Sistema" virou lixeira: Loja + Canais (Instâncias WhatsApp / Webchat) + Configurações + técnico (Webhooks / API / Audit) + Ajuda.
-- "Vendas" mistura catálogo, IPTV e operacional financeiro.
-- L179 **Meu Setup** está em "Equipe" mas é setup pessoal — devia estar em "Minha Conta".
-- **Painel Master** renderizado fora de qualquer `CollapsibleSection` (L676).
-
-Gating por módulo errado:
-- L114-120 — Trials, Apps, Planos, Sigma e **Faturamento** todos com `module: 'iptv_trials'`. Desligar `iptv_trials` esconde Faturamento (não deveria).
-- L111 **Vitrine Netflix** com `module: null` — deveria ter gate coerente, e o nome usa marca registrada num produto whitelabel.
-
-Ordem:
-- "Analytics" cai entre "Minha Conta" (agent) e "Equipe" — fora de lugar; faz mais sentido junto a Vendas/Equipe.
-
-**Impacto:** Cliente normal vê itens que não deveria ver (ou em lugar errado), e o menu fica mais confuso do que o produto realmente é. Não há vazamento de dados — apenas exposição de entradas de menu e UX ruim.
-
-**Fix planejado:** a definir (reorganização de `NAV_CATEGORIES` + ajustes de `roles`/`module`/`superAdminOnly` por item).
-
----
-
 ## Bugs corrigidos
 
 | ID | Descrição | Corrigido em | Commit |
@@ -199,6 +158,7 @@ Ordem:
 | B2 | AI Agent histórico vazio — SELECT usava coluna `body` (correta é `text`) e filtro JS comparava com `'outbound'` (worker.ts linhas 3299/3306) | 27/04/2026 | e2f5ba16 |
 | B3 | Cross-tenant no AI Agent — query `app_flow_nodes JOIN ai_writing_agents` sem filtro de `workspace_id`, prompt do agente vazava nodes de outros tenants (worker.ts linha 3390) | 27/04/2026 | c9d90b87 |
 | B4 | Pool de conexões saturado — `handleProcessWebhook` segurava o client do `BEGIN` até o `finally`, mantendo a conexão durante chamadas Whisper/Vision/GPT-4o-mini (10-30s); 5 webhoooks simultâneos travavam o worker. Fix: `safeRelease()` movido para logo após o `COMMIT` (worker.ts linha 1949) | 27/04/2026 | 73d4257f |
+| BUG-009 | Sidebar do cliente reorganizada — nova estrutura: Atendimento / Canais / Vendas / IPTV / Automação / IA / Analytics / Equipe / Revendedor / Configurações / Desenvolvedor / Interno. "Vitrine Netflix"→"Vitrine"; Loja de Módulos com roles owner/admin (e fora de viewerPaths); Documentação Webchat e Follow-up Automático removidos do menu; Revendedor consolidado em /reseller único; Meu Setup → Configurações; Faturamento sem dependência de iptv_trials; Painel Master encapsulado em "Interno" com Mapa de Workspaces e Sigma (todos superAdminOnly). `IPTV_RESELLER_ALLOWED_HREFS` atualizado de `/reseller-dashboard` → `/reseller`. (`components/layout/sidebar-nav.tsx`) | 27/04/2026 | eeecb23e |
 
 ---
 

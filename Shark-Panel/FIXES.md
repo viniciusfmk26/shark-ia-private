@@ -576,3 +576,17 @@ Agora `/settings` (`app/(dashboard)/settings/page.tsx`) tem 8 cards/abas em orde
 `/monitoring` e `/automations` ficam com os mesmos componentes de settings ainda renderizados (não removidos para evitar quebrar bookmarks/links existentes). Componentes órfãos `ElevenLabsTab`/`PlansModulesTab` continuam não plugados — fora do escopo.
 
 Build SHA: `3332dbb1`. Smoke test: `/api/health` 200.
+
+**Redesign do login com identidade Shark Panel (27/04/2026):**
+
+`app/login/page.tsx` (não existe `app/(auth)/`, o login fica em `/app/login` mesmo) repaginado para combinar com a landing `sharkpanel.com.br`. Antes: visual genérico zinc-950 / verde esmeralda herdado do Zapflix. Agora alinhado com a landing:
+
+- Fundo `#0a0f1e` com gradiente radial ciano (`#06b6d4`) + azul sutil e grid pattern com fade via `mask-image` ellipse
+- Card central com borda `cyan-500/30`, glow externo por gradiente ciano→azul (`-inset-px blur`), `shadow-[0_0_40px_-10px_rgba(6,182,212,0.5)]` e `backdrop-blur-xl`
+- Logo: emoji 🦈 com `drop-shadow` ciano + texto "Shark Panel" em gradient `from-cyan-300 via-cyan-200 to-blue-300` (`bg-clip-text text-transparent`)
+- Inputs com `border-white/10`, focus ring ciano `focus:ring-cyan-400/30` + glow `shadow-[0_0_20px_-2px_rgba(6,182,212,0.4)]`
+- Botão "Entrar" com gradiente `from-cyan-500 to-cyan-400`, shimmer via camada `translate-x` no hover, glow ciano persistente
+- Footer separado por `border-t border-white/5`: "© {ano} Shark Panel"
+- Lógica de auth (`signIn` credentials + `check-status` para pending/rejected) preservada — somente JSX/classes alterados
+
+Build SHA: `a42d219c`. Smoke test: `/api/health` 200, deploy convergiu via `docker service update --force`.

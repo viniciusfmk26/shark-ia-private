@@ -11,6 +11,7 @@
   - `/` redireciona para `/master`
   - rotas não autenticadas → middleware envia para `/master-login` preservando o host (constrói URL via header `host` + `x-forwarded-proto`)
   - `/master-login` valida `isSuperAdmin` via `/api/me/permissions` após signIn; se não for superadmin, signOut + erro "Acesso negado"
+  - Visual diferenciado: ícone 🔐, título "Shark Panel Admin", subtítulo "Acesso restrito ao administrador", sem link de cadastro (footer comum "© <ano> Shark Panel")
 - `app.sharkpanel.com.br/master-login` → 307 para `/login` (não vaza login admin no domínio cliente)
 
 ## Site institucional (separado do painel)

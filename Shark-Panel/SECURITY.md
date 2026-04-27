@@ -284,7 +284,7 @@ Schema sem auditabilidade. Onboarding e disaster recovery comprometidos.
 
 - `worker.ts` com 7.669 linhas (monolítico)
 - 579 rotas de API (5x o esperado para o escopo)
-- 3 triggers duplicados em `jobs` (custo 3x nos UPDATEs)
+- ~~3 triggers duplicados em `jobs`~~ ✅ corrigido em 27/04/2026 (migration 098)
 - DDL em runtime (`ALTER TABLE` em todo request em algumas rotas)
 - `lib/evolution/client.ts` dead code (URL errada, não é usado)
 - `lib/queue/automation-queue.ts` dead code BullMQ

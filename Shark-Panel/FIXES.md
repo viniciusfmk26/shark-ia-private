@@ -370,23 +370,15 @@ Migration aplicada: `migrations/097_fix_automations_workspace_default.sql`
 `ALTER TABLE automations ALTER COLUMN workspace_id DROP DEFAULT;`
 Verificado: 0 automações com o UUID do superadmin (sem contaminação de dados).
 
-### Fix 4.2 — Remover triggers duplicados em jobs
+### Fix 4.2 — Remover triggers duplicados em jobs ✅ 27/04/2026
 
-```
-Tarefa para Claude Code:
+A tabela jobs tinha 3 triggers fazendo a mesma coisa (todos UPDATE BEFORE, funções idênticas):
+- `jobs_updated_at` → `update_updated_at()` ← **mantido** (canônico, usado em 6 tabelas)
+- `jobs_updated_at_trigger` → `update_updated_at_column()` ← removido
+- `trg_jobs_updated_at` → `set_updated_at()` ← removido
 
-A tabela jobs tem 3 triggers fazendo a mesma coisa:
-- jobs_updated_at
-- jobs_updated_at_trigger
-- trg_jobs_updated_at
-
-Criar migration para remover 2 dos 3:
-
-ALTER TABLE jobs DROP TRIGGER IF EXISTS jobs_updated_at_trigger ON jobs;
-ALTER TABLE jobs DROP TRIGGER IF EXISTS trg_jobs_updated_at ON jobs;
-
-Manter apenas jobs_updated_at.
-```
+Migration: `migrations/098_remove_duplicate_triggers.sql`
+Aplicado em produção em 27/04/2026. Tabela jobs ficou com 1 trigger apenas.
 
 ### Fix 4.3 — Limpar arquivos históricos da raiz
 

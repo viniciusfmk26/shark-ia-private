@@ -289,7 +289,7 @@ Schema sem auditabilidade. Onboarding e disaster recovery comprometidos.
 - `lib/evolution/client.ts` dead code (URL errada, não é usado)
 - `lib/queue/automation-queue.ts` dead code BullMQ
 - 2 lockfiles conflitantes (npm + pnpm)
-- 60+ arquivos históricos na raiz
+- ~~60+ arquivos históricos na raiz~~ ✅ arquivados em /root/archive/ (27/04/2026)
 - 127 GB Docker reclaimable
 - `package.json` name ainda "my-v0-project"
 - `api_key` aceito via querystring em `/api/rotation`
@@ -333,10 +333,10 @@ Schema sem auditabilidade. Onboarding e disaster recovery comprometidos.
 | M2 | short_links PRNG | 🟠 Médio | ✅ Corrigido (26/04/2026) |
 | M3 | Redis sem keyPrefix | 🟠 Médio | ✅ Corrigido (26/04/2026) — keyPrefix 'shark:' |
 | M4 | Banco sem retenção | 🟠 Médio | ✅ Corrigido (26/04/2026) |
-| M5 | automations DEFAULT errado | 🟠 Médio | ⏳ Aberto |
+| M5 | automations DEFAULT errado | 🟠 Médio | ✅ Corrigido (27/04/2026) — migration 097 |
 | M6 | Monitor offline | 🟠 Médio | ✅ Corrigido (26/04/2026) — running como root, 63 containers monitorados |
 | M7 | Supabase legado rodando | 🟠 Médio | ✅ Corrigido (27/04/2026) |
 | M8 | MAX_PRICE hardcoded | 🟠 Médio | ⏳ Aberto |
-| M9 | Migrations sem registro | 🟠 Médio | ⏳ Aberto |
+| M9 | Migrations sem registro | 🟠 Médio | ✅ Corrigido (27/04/2026) — 71 registros inseridos, todos os 95 arquivos cobertos |
 
 > Atualizar esta tabela conforme fixes são aplicados.

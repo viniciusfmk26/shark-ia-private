@@ -380,23 +380,30 @@ A tabela jobs tinha 3 triggers fazendo a mesma coisa (todos UPDATE BEFORE, funç
 Migration: `migrations/098_remove_duplicate_triggers.sql`
 Aplicado em produção em 27/04/2026. Tabela jobs ficou com 1 trigger apenas.
 
-### Fix 4.3 — Limpar arquivos históricos da raiz
+### Fix 4.3 — Limpar arquivos históricos da raiz ✅ 27/04/2026
 
-```
-Tarefa para Claude Code:
+**Concluído.** 9 arquivos históricos movidos de `/root/` para `/root/archive/` (não deletados):
 
-Listar arquivos na raiz do projeto que não são código:
-ls -la /root/Zapflix-Tech/ | grep -v "^d\|node_modules\|.git"
+- `all_migrations.sql` (139 KB, Fev/2026)
+- `iptv_migration.sql` (12 KB, Fev/2026)
+- `missing_rpcs.sql` (1,1 KB, Fev/2026)
+- `missing_tables.sql` (18 KB, Fev/2026)
+- `zapflix-monitor.tar.gz` (22 KB, Fev/2026)
+- `=`, `brand_logo_url`, `brand_name`, `team_note_categories:` (vazios/artefatos)
 
-Mover para uma pasta /root/Zapflix-Tech/_archive/:
-- all_migrations.sql
-- iptv_migration.sql
-- missing_*.sql
-- Arquivo com nome "2026-04-24 09:00:00+00"
-- Outros arquivos históricos
+Preservados no lugar: `backup.sh` (ativo, Abr/2026), `superz_key` / `superz_key.pub` (chaves SSH).
 
-Não deletar, apenas mover.
-```
+### Fix M9 — Registrar migrations históricas na tabela _migrations ✅ 27/04/2026
+
+**Contexto:** A tabela `_migrations` já existia com estrutura diferente da planejada (coluna `name` em vez de `filename`, mais coluna `executed_at`). Havia 50 registros de 95 arquivos — 45 migrations aplicadas manualmente sem registro.
+
+**Ação:**
+- Verificado schema real: `id`, `name` (UNIQUE), `applied_at`, `executed_at`
+- Inseridos 71 registros faltantes via `INSERT ... ON CONFLICT DO NOTHING`
+- Total final: 121 registros (50 originais + 71 novos — inclui entradas legadas sem `.sql`)
+- Todos os 95 arquivos `.sql` do disco confirmados como registrados
+
+Operação exclusivamente no banco (sem alteração de código no repositório).
 
 ---
 
@@ -432,9 +439,9 @@ Não deletar, apenas mover.
 
 ### Semana 4 — Qualidade
 - [x] automations DEFAULT corrigido (27/04/2026)
-- [ ] Triggers duplicados removidos
-- [ ] Arquivos históricos arquivados
-- [ ] SECURITY.md atualizado com status dos fixes
+- [x] Triggers duplicados removidos (27/04/2026)
+- [x] Arquivos históricos arquivados (27/04/2026)
+- [x] SECURITY.md atualizado com status dos fixes (27/04/2026)
 
 ---
 

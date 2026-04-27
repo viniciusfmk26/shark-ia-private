@@ -551,3 +551,18 @@ Etapa 4 — Redirecionar appcineflick.com.br
 - Verificado dentro do container: `curl -H "Host: admin.sharkpanel.com.br" /` retorna 307 → `/master`
 - ⚠️ Domínio `admin.sharkpanel.com.br` ainda não está roteado para `wp_zapflix-web` no Easypanel/Traefik (404 público). Adicionar host no painel do serviço para o redirect ser atingível externamente.
 - Necessário usar `docker service update --force` quando reusar tag `:latest` (swarm não detecta nova digest local sozinho)
+
+**Auditoria de ações do superadmin (27/04/2026):**
+
+Diagnóstico inicial: o trabalho de centralizar autenticação (Etapa 1, item 1–3 da lista acima) já estava concluído em commits anteriores — `lib/auth/superadmin.ts` é a fonte canônica, `require-superadmin.ts` é shim, `rbac.ts` delega, `superadmin-client.ts` para client components, `app/(master)/layout.tsx` faz `redirect('/')` server-side antes de qualquer JS de página. UUID hardcoded só permanece nos 2 fallbacks corretos (env vars `SUPERADMIN_ID`/`NEXT_PUBLIC_SUPERADMIN_ID`).
+
+Lacuna real era trilha de auditoria: apenas 1 de 29 rotas master chamava `logAudit` (só `master/instances/[id]/move`). Instrumentado hoje em 21 arquivos (+338 −29):
+
+- **master**: `workspace/[id]/action` (5 ações: block, unblock, change_plan, add_trial_days, send_message), `workspaces` (POST), `workspaces/copy-settings`, `plans`, `settings`, `resellers`, `financeiro/resellers/payout`, `global-blacklist/[id]` (DELETE), `monitoring` (DELETE), `ai-agents` (CRUD), `ai-agents/[id]/app-flow` (CRUD nodes), `elevenlabs-voices` (CRUD)
+- **admin**: `payouts`, `payouts/discount-days`, `payouts/reverse-commissions`, `ai-plans`, `resellers` (POST), `resellers/[id]` (4 transições + commission + referral), `resellers/withdrawals/[id]`
+
+Padrão: `logAudit({ workspaceId, userId, action: 'namespace.verb', entityType, entityId, details, ip })` chamado após sucesso, fire-and-forget. Para ações globais (settings, ai-writing-agents, blacklist) usa `SUPERADMIN_ID` como workspace. Em rotas com permissão `admin do workspace ∪ superadmin`, registra `bySuperAdmin: boolean` em `details` para distinguir.
+
+Mantidos sem alteração: `master/instances/[id]/move` (já usa `logAudit`) e `admin/workspaces-map/move-instance` (grava em `audit_logs` dentro da transação — trocar por `logAudit` quebraria atomicidade).
+
+Verificado pós-deploy: chunks compilados contêm strings únicas adicionadas (`workspace.blocked`, `reseller.payout`, `platform.settings_updated`); 31 chunks fazem referência a `logAudit`. Build SHA: `2e9b77e6`. Smoke tests: `/api/health` 200, `/master` 307→login.

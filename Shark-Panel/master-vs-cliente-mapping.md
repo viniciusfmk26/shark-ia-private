@@ -56,7 +56,7 @@ inbox, contacts, groups, automations, guided-funnels, campaigns, templates, tick
 | `/master/monitoramento` (workers/redis/db) | `/monitoring` (monitoramento de instâncias/jobs/mensagens + 3 tabs de settings ao final) | Escopos diferentes — OK. Cliente tem ressaca de tabs de settings duplicadas no rodapé. |
 | `/master/audit` (cross-ws) | `/audit-log` (real, por ws) + `/audit-logs` (com fallback para MOCK data) | `/audit-logs` tem `generateMockLogs` como fallback quando API falha — confunde com dados reais. |
 | `/master/pessoas` | `/users` + `/team/[userId]` | OK por escopo. Naming inconsistente (pessoas vs users). |
-| `/master/revendedores` | `/reseller` + `/reseller-dashboard` + `/resellers` | **3 páginas de afiliado no cliente** — provável duplicação (reseller × reseller-dashboard). |
+| `/master/revendedores` | `/reseller` + `/reseller-dashboard` + `/resellers` | **3 páginas de afiliado no cliente** — provável duplicação (reseller × reseller-dashboard). `/resellers` plugado no sidebar (Revendedor → Meus Revendedores) em 27/04/2026; aprovação de saque removida da página (fica só em `/master/revendedores`). |
 | `/master/ai-agents` | `/ai` + `/ai-assistant` + `/ai-studio` | **3 páginas de IA no cliente** — alta chance de sobreposição. |
 
 ### ❌ Falta no Master
@@ -90,4 +90,4 @@ inbox, contacts, groups, automations, guided-funnels, campaigns, templates, tick
 4. ~~Remover tabs de settings duplicadas do rodapé de `/monitoring`~~ — feito em 27/04/2026 (commit `ce1a3617`); página agora está no menu (Analytics).
 5. Adicionar no cliente: blacklist do workspace + página "Meu Plano".
 6. Adicionar no master: visão global de tickets, trials, jobs e cupons.
-7. Avaliar `/resellers` (admin client de revendedores) — duplica `/master/revendedores`. Decidir se workspace-scoped admin tem caso de uso real.
+7. Avaliar `/resellers` (admin client de revendedores) — duplica `/master/revendedores`. **Mantido em 27/04/2026**: plugado no sidebar como "Meus Revendedores" e aprovação/rejeição de saque removida (fica exclusiva no master).

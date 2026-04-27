@@ -157,6 +157,7 @@ Automações criadas sem `workspace_id` explícito ficam no workspace do Superad
 | B1 | Anti-ban quebrado — queries SQL filtravam `direction='outbound'` mas banco usa `'out'`, contadores sempre 0 e limite diário nunca disparava (worker.ts linhas 3692, 4592, 4601) | 27/04/2026 | fe65a0ca |
 | B2 | AI Agent histórico vazio — SELECT usava coluna `body` (correta é `text`) e filtro JS comparava com `'outbound'` (worker.ts linhas 3299/3306) | 27/04/2026 | e2f5ba16 |
 | B3 | Cross-tenant no AI Agent — query `app_flow_nodes JOIN ai_writing_agents` sem filtro de `workspace_id`, prompt do agente vazava nodes de outros tenants (worker.ts linha 3390) | 27/04/2026 | c9d90b87 |
+| B4 | Pool de conexões saturado — `handleProcessWebhook` segurava o client do `BEGIN` até o `finally`, mantendo a conexão durante chamadas Whisper/Vision/GPT-4o-mini (10-30s); 5 webhoooks simultâneos travavam o worker. Fix: `safeRelease()` movido para logo após o `COMMIT` (worker.ts linha 1949) | 27/04/2026 | 73d4257f |
 
 ---
 

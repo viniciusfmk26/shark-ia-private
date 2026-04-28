@@ -2,8 +2,8 @@
 
 > Sistema de indicação onde qualquer pessoa pode se cadastrar como afiliado público, ser aprovado manualmente pelo Vinicius e ganhar comissão (30%) por cada venda gerada via seu `referral_code`.
 >
-> Relacionado: [[roadmap]] · [[bugs]] (B-001) · [[ARCHITECTURE]]
-> Lançado em **28/04/2026** (Fase 1).
+> Relacionado: [[roadmap]] · [[bugs]] (B-001 ✅, B-002) · [[auth-change-password]] · [[ARCHITECTURE]]
+> Lançado em **28/04/2026** (Fase 1) · B-001 fix aplicado no mesmo dia.
 
 ---
 
@@ -36,12 +36,15 @@ A coluna `type` já existia no schema (default `'reseller'`). Bastou começar a 
 4. **Vinicius é notificado** via WhatsApp na instância cubot (`SUPERADMIN_PHONE`)
 5. **Lead vê** `/afiliado/cadastro/sucesso` com mensagem "aguarde 24h"
 6. **Master abre** `/master/revendedores`, filtra por tipo "Afiliados", clica **Aprovar**
-7. **API** `PATCH /api/admin/resellers/[id]` action='approve' (com B-001 fix):
-   - Cria `nextauth_users` com senha temporária se `user_id IS NULL`
-   - Marca `status='approved'`
-   - **Pula workspace pra afiliado** (`type='affiliate'` não cria workspace nem subscription)
-   - Manda WhatsApp pro afiliado com link `https://appcineflick.com.br/comprar?ref={CODE}` + credenciais (email/senha temp/link de troca)
-   - Loga em `audit_logs`
+7. **API** `PATCH /api/admin/resellers/[id]` action='approve' (com B-001 fix — commit `d1a82488`):
+   - Cria `nextauth_users` com senha temporária (8 chars legíveis via `crypto.randomBytes`) se `user_id IS NULL`
+   - Hash com `bcrypt(pwd, 12)`. Senha em texto **só vive em memória da request** — não persiste em coluna
+   - Idempotente: re-aprovar não troca senha de quem já tem (`if password IS NULL`)
+   - Email duplicado: reaproveita o `user_id` existente em vez de erro
+   - Marca `status='approved'` em `resellers` e `nextauth_users`
+   - **Pula workspace pra afiliado** (`type='affiliate'` não cria workspace, membership, nem subscription)
+   - Manda WhatsApp pro afiliado: link `?ref={CODE}` + bloco condicional `🔐 Acesso ao painel` com email/senha temp/link `/configuracoes/senha`
+   - Loga em `audit_logs` (silencia se workspace_id de fallback não existir — ver [[bugs]] B-002)
 8. **Afiliado divulga o link** — toda venda no checkout que vier com `?ref={CODE}` gera comissão automática via webhook PIX (lógica já existia para revendedores).
 
 ---

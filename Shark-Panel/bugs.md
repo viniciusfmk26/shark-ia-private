@@ -134,55 +134,66 @@ Automações criadas sem `workspace_id` explícito ficam no workspace do Superad
 
 ---
 
-### B-001 — public-signup não cria nextauth_users (afiliados + revendedores)
+### B-002 — audit_logs.workspace_id FK não casa com SUPERADMIN_ID seed
+
+**Arquivo:** `lib/server/audit.ts` · seed de `workspaces`
+**Severidade:** Média (sem auditoria histórica de aprovações/operações superadmin)
+**Identificado em:** 28/04/2026 (durante validação técnica do B-001 fix)
+
+**Descrição:**
+`audit_logs.workspace_id` tem `FK → workspaces(id) ON DELETE CASCADE` e é `NOT NULL`. Mas `SUPERADMIN_ID = '00000000-0000-0000-0000-000000000001'` (env ou hardcoded em `lib/auth/superadmin.ts`) referencia um workspace que **não existe** no banco. Apenas `00000000-0000-0000-0000-000000000002` (Shark Panel) está seedado.
+
+`logAudit` é fire-and-forget (linha 55: `.catch(() => {})`), então toda chamada com fallback `workspaceId: SUPERADMIN_ID` falha o FK silenciosamente. Comprovado: `SELECT COUNT(*) FROM audit_logs WHERE entity_type='reseller'` → 0 (nenhum approve/reject jamais foi auditado).
+
+**Impacto:**
+- Nenhuma auditoria de ações superadmin que cai no fallback (aprovação de reseller/affiliate quando workspace_id ainda não existe, etc.)
+- Aprendido: o try/catch do logAudit oculta erros estruturais — sem alarme
+
+**Possíveis fixes (decisão posterior):**
+- (a) **Seed do workspace `…0001`** ("Superadmin Sistema") como linha real em `workspaces` — alinha com o que CLAUDE.md já documentava
+- (b) **Tornar `audit_logs.workspace_id` nullable** + index parcial — desacopla audit de FK em workspace
+- (c) Manter SUPERADMIN_ID separado e mapear pra workspace existente (ex: `…0002` Shark Panel) — gambiarra, não recomendado
+
+**Status:** 📌 Aguardando decisão. Fora do escopo B-001.
+
+---
+
+### B-001 — public-signup não cria nextauth_users (afiliados + revendedores) — ✅ RESOLVIDO 28/04/2026
 
 **Arquivos:** `app/api/resellers/public-signup/route.ts` · `app/api/affiliates/public-signup/route.ts` · `app/api/admin/resellers/[id]/route.ts`
 **Severidade:** Alta (revendedor) / Média contornada (afiliado)
 **Identificado em:** 28/04/2026 (durante implementação F-001 fase 1)
-**Status:** 🔧 **Em fix — Opção C2** (28/04/2026)
+**Status:** ✅ **Resolvido** em 28/04/2026 — Opção C2 + change-password + skip workspace
 
-**Descrição:**
-Ambas as rotas públicas de cadastro inserem em `resellers` com `user_id=NULL`. O fluxo de aprovação (`PATCH /api/admin/resellers/[id]` action='approve') depende de `reseller.user_id` para:
-1. `UPDATE nextauth_users SET status='approved' WHERE id=$user_id` (silenciosamente faz nada)
-2. `INSERT INTO workspaces (..., owner_id) VALUES (..., $user_id)` — **falha** porque `workspaces.owner_id` é `NOT NULL`
+**Descrição original:**
+Ambas as rotas públicas de cadastro inseriam em `resellers` com `user_id=NULL`. O fluxo de aprovação (`PATCH /api/admin/resellers/[id]` action='approve') dependia de `reseller.user_id` para:
+1. `UPDATE nextauth_users SET status='approved' WHERE id=$user_id` (silenciosamente fazia nada)
+2. `INSERT INTO workspaces (..., owner_id) VALUES (..., $user_id)` — falhava porque `workspaces.owner_id` é `NOT NULL`
 
-**Impacto:**
-- **Revendedor** (preexistente): cadastros públicos aprovados não conseguem logar; aprovação master via UI quebra silenciosamente na criação do workspace.
-- **Afiliado** (F-001 fase 1): contornado por design — afiliado opera 100% via link/`referral_code` + comissão automática no webhook PIX, não precisa logar. Mas aprovação manual também explodia.
+**Impacto original:**
+- Revendedor: cadastros públicos aprovados não conseguiam logar; aprovação master via UI quebrava silenciosamente
+- Afiliado: aprovação manual explodia (apesar do afiliado não precisar logar)
 
-**Como reproduzir:**
-1. POST `/api/affiliates/public-signup` com nome/email/whatsapp
-2. Tentar `PATCH /api/admin/resellers/{id}` com `{action: 'approve'}` → erro 500 (NOT NULL violation em workspaces.owner_id)
+**Solução final aplicada:**
 
-**Decisão tomada (28/04/2026): Opção C2 + change-password + skip workspace pra afiliado**
+| Commit | Conteúdo |
+|---|---|
+| `c92dc777` | `lib/auth/temp-password.ts` — gerador legível com `crypto.randomBytes`, alfabeto sem ambíguos. `POST /api/auth/change-password` autenticado (bcrypt cost 12). UI `/configuracoes/senha` com 3 campos. Botão "Trocar senha" no header do `/reseller`. |
+| `d1a82488` | `app/api/admin/resellers/[id]/route.ts` action='approve' reescrito: gera senha temp em memória se `user_id IS NULL`, `INSERT INTO nextauth_users` com hash bcrypt. Idempotente (`if password IS NULL`). Reaproveita user_id existente em caso de email duplicado. **Pula workspace pra `type='affiliate'`**. WhatsApp ganha bloco condicional com credenciais. |
 
-Plano de implementação:
+**Garantias:**
+- Senha em texto **só vive em variável local da request** — nunca persiste em coluna
+- Re-aprovar não troca senha de quem já tem
+- Afiliado nunca cria workspace (correto — não usa)
+- Fluxo de troca disponível em `/configuracoes/senha`
 
-1. **Não criar `nextauth_users` no public-signup.** Mantém `user_id=NULL` no signup (rota pública não pede senha).
-2. **No fluxo de aprovação (`action='approve'`):**
-   - Se `reseller.user_id IS NULL`: gerar senha temporária (8 chars legíveis via `crypto.randomBytes`), `bcrypt.hash(pwd, 12)`, `INSERT INTO nextauth_users` com a senha, `UPDATE resellers SET user_id=...`
-   - Se `user_id` existe mas `password IS NULL`: idempotente — gerar senha e fazer UPDATE
-   - Se já tem senha: não gerar nada
-   - **Senha em texto vive APENAS em memória** (variável da request) — vai pro WhatsApp e some
-3. **Skip workspace pra afiliado:** `if (reseller.type !== 'affiliate')` antes do INSERT em workspaces/memberships/subscriptions
-4. **Template do WhatsApp pós-aprovação** ganha bloco condicional com credenciais quando senha foi gerada agora:
-   ```
-   🔐 Acesso ao painel:
-   Email: ${email}
-   Senha temporária: *${tempPassword}*
-   👉 https://appcineflick.com.br/login
-   ⚠️ Anote sua senha — recomendamos trocar após primeiro login.
-   ```
-5. **Sub-tarefa B-001b: criar fluxo de troca de senha** (pré-requisito):
-   - `lib/auth/temp-password.ts` — helper de geração com `crypto.randomBytes` (alfabeto sem ambíguos)
-   - `POST /api/auth/change-password` — autenticado, exige senha atual + nova
-   - `/configuracoes/senha` — UI com 3 campos
-   - Item de menu no `/reseller`
+**Validação técnica (afiliado teste WYYKP6):**
+- `resellers`: `status='approved'`, `user_id=841e40a8-…`, `workspace_id=NULL` ✓
+- `nextauth_users`: linha nova, `status='approved'`, `password` bcrypt 60 chars ✓
+- `workspaces`: 0 rows com owner_id do afiliado ✓
+- `audit_logs`: 0 rows — descoberta secundária registrada como **B-002** (não regressão)
 
-**Risco mitigado:**
-- Senha em texto NÃO persiste em coluna do banco
-- Gerar idempotente (`if password IS NULL`) → re-aprovar não troca senha do usuário
-- Email duplicado: validar contra `nextauth_users.email` antes do INSERT
+**Ver também:** [[feature-afiliados]] · [[auth-change-password]]
 
 ---
 

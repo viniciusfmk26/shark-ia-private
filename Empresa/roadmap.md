@@ -63,7 +63,7 @@ O Zapflix Tech está funcional com os seguintes módulos:
 
 **Status:**
 - ✅ Fase 1 (28/04/2026) — cadastro público + filtro UI no master. Ver [[feature-afiliados]].
-- 🔧 B-001 fix (28/04/2026) — em andamento (C2 + change-password + skip workspace pra afiliado). Ver [[bugs]] B-001.
+- ✅ B-001 fix (28/04/2026) — Opção C2 + change-password + skip workspace pra afiliado. Ver [[bugs]] B-001 e [[auth-change-password]].
 - ⏳ Fase 2 — crédito avulso (1 cred = 1 cliente/mês)
 - ⏳ Fase 3 — notificação WhatsApp ao aprovar (já tem via reuso do approve do reseller)
 - ⏳ Fase 4 — auto-aprovação opcional (toggle no master)
@@ -159,6 +159,7 @@ O Zapflix Tech está funcional com os seguintes módulos:
 | Feature | Data | Observação |
 |---------|------|-----------|
 | F-001 Afiliados Fase 1 | 28/04/2026 | reuso resellers + filtro UI · ver [[feature-afiliados]] · commit 38b6f587 |
+| B-001 fix (afiliados + revendedores) | 28/04/2026 | C2 + change-password + skip workspace · ver [[auth-change-password]] · commits c92dc777 + d1a82488 |
 | Aba Problemas no Sales Brain | 26/04/2026 | commit 33c21a4a |
 | Botão cancelar funil no badge "Inscrito" | 26/04/2026 | commit ecde0f1a |
 | Fix cobrança avulsa vs plano mensal (webhook) | 26/04/2026 | commit ecde0f1a |

@@ -47,7 +47,7 @@ O Zapflix Tech está funcional com os seguintes módulos:
 | short-url.ts usando crypto | ✅ Concluído | Fix 3.3 |
 | Redis com keyPrefix `shark:` | ✅ Concluído | Fix 3.4 |
 | zapflix-monitor reativado | ✅ Concluído (28/04/2026 — imagem rebuildada) | Fix 3.5 |
-| Crons críticos agendados | ⚠️ Parcial (12 de ~19 agendados) | Fix 3.6 |
+| Crons críticos agendados | ✅ Concluído (28/04/2026 — 27 ativos + cutoff) | Fix 3.6 |
 
 ---
 

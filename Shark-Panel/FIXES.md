@@ -5,7 +5,7 @@
 > Antes de qualquer fix: fazer snapshot do servidor no painel do provedor.
 > Relacionado: [[SECURITY]] | [[RUNBOOK]] | [[AUDITORIA_2026-04-28]]
 >
-> **Auditoria 28/04/2026:** ver [[AUDITORIA_2026-04-28]] — Fix 1.4 (MinIO) e Fix 3.5 (monitor) reaberto, Fix 3.6 parcial. **Update 28/04/2026:** Fix 3.5 reconcluído (imagem rebuildada).
+> **Auditoria 28/04/2026:** ver [[AUDITORIA_2026-04-28]] — Fix 1.4 (MinIO) e Fix 3.5 (monitor) reaberto, Fix 3.6 parcial. **Update 28/04/2026:** Fix 3.5 reconcluído (imagem rebuildada). Fix 3.6 concluído (15 crons agendados + cutoff `CRON_CUTOFF_DATE`). Ver [[postmortem-cron-cutoff]].
 
 ---
 
@@ -364,71 +364,60 @@ Naquele momento ficou OK:
 - DB metrics: pool ativo, cache_hit_ratio 85%, 1572 MB
 - `/api/metrics` retornando dados completos
 
-### Fix 3.6 — Agendar crons faltantes — ⚠️ PARCIAL
+### Fix 3.6 — Agendar crons faltantes — ✅ 28/04/2026
 
-**Status auditado em 28/04/2026.** O `crontab.supercronic` em `wp_zapflix-cron.1` já agenda 12 crons:
+**Concluído.** 27 crons ativos no supercronic (12 anteriores + 15 novos).
 
-```
-scheduled-messages (* * * * *)
-metrics-snapshot (0 * * * *)
-purge-jobs (0 6 * * *)
-metrics-snapshot-daily (15 6 * * *)
-weekly-report (0 9 * * 1)
-funnel-processor (* * * * *)
-check-webhook-tokens (*/5 * * * *)
-check-worker-alerts (*/5 * * * *)
-sync-instance-profiles (0 3 * * *)
-check-instance-health (*/15 * * * *)
-process-bulk-send (* * * * *)
-db-retention (0 4 * * 0)
-```
-
-**Existem como rota em `app/api/cron/<nome>/route.ts` mas NÃO estão agendados:**
-
-- `plan-expiry`
-- `renewal-check`
-- `pix-followup`
-- `trial-followup`
-- `drip-campaigns`
-- `close-inactive`
-- `promote-expired-trials`
-- `abandoned-cart`
-- `follow-up`
-- `drip-event-triggers`
-- `increment-warmup-day`
-- `monthly-payroll`
-- `reseller-billing`
-- `reseller-levels`
-- `sigma-backfill-24h`
+**Schedules dos 15 novos:**
 
 ```
-Tarefa para Claude Code:
-
-Editar o crontab do supercronic dentro do build de wp_zapflix-cron
-(provavelmente apps/cron/crontab ou copiado pelo Dockerfile.cron).
-
-Adicionar entradas no formato:
-*/<freq> * * * * /usr/local/bin/run-crons.sh <nome>
-
-Frequências sugeridas (confirmar com Vinicius):
-- plan-expiry            0 8 * * *      diário 8h
-- renewal-check          0 7 * * *      diário 7h
-- pix-followup           */30 * * * *   30 em 30 min
-- trial-followup         0 10 * * *     diário 10h
-- promote-expired-trials 0 1 * * *      diário 1h
-- close-inactive         0 */6 * * *    a cada 6h
-- drip-campaigns         */15 * * * *   a cada 15 min
-- abandoned-cart         0 */2 * * *    a cada 2h
-- follow-up              0 */4 * * *    a cada 4h
-- drip-event-triggers    */5 * * * *    a cada 5 min
-- increment-warmup-day   30 0 * * *     diário 0h30
-- monthly-payroll        0 1 1 * *      dia 1 do mês
-- reseller-billing       0 2 1 * *      dia 1 do mês
-- reseller-levels        0 3 * * 0      domingo 3h
-- sigma-backfill-24h     0 5 * * *      diário 5h
-
-Rebuild de wp_zapflix-cron e docker service update --force.
+*/30 * * * *   pix-followup            (com cutoff)
+0 */2 * * *    abandoned-cart          (com cutoff)
+0 */4 * * *    follow-up               (com cutoff)
+*/15 * * * *   drip-campaigns          (com cutoff)
+0 10 * * *     trial-followup          (já protegido — janela 7d)
+0 1 * * *      promote-expired-trials  (já protegido — janela 7d)
+*/5 * * * *    drip-event-triggers     (janelas 1-7d bounded)
+0 3 * * *      close-inactive          (com cutoff)
+0 8 * * *      plan-expiry             (forward-looking)
+0 7 * * *      renewal-check           (forward-looking)
+30 0 * * *     increment-warmup-day    (forward-looking)
+0 1 1 * *      monthly-payroll         (forward-looking)
+0 2 1 * *      reseller-billing        (forward-looking)
+0 3 * * 0      reseller-levels         (forward-looking)
+0 5 * * *      sigma-backfill-24h      (forward-looking)
 ```
+
+**Cutoff de segurança — `CRON_CUTOFF_DATE=2026-04-28T00:00:00Z`**
+
+Para evitar que os 4 crons de receita/engajamento "atacassem" o
+backlog histórico (tipicamente 80+ pedidos PIX antigos pendentes,
+conversas dormentes, etc), 5 rotas ganharam filtro condicional:
+
+| Rota | Campo |
+|------|-------|
+| `pix-followup` | `checkout_orders.created_at >= cutoff` |
+| `abandoned-cart` | `conversations.interest_detected_at >= cutoff` |
+| `follow-up` | `messages.created_at >= cutoff` (última msg do agente) |
+| `drip-campaigns` | `drip_campaign_enrollments.enrolled_at >= cutoff` |
+| `close-inactive` | `conversations.last_message_at >= cutoff` |
+
+Filtro escrito como `($N::timestamptz IS NULL OR campo >= $N)` —
+se a env var sumir, código continua rodando sem cutoff (não quebra).
+
+**⚠️ Aprendizado crítico:** a env var precisa estar no serviço que
+**LÊ** (`wp_zapflix-web` e `wp_zapflix-worker`), não no que **AGENDA**
+(`wp_zapflix-cron`). O cron só faz `curl` ao web — quem executa a
+lógica é o web. Plano original pedia setar no cron; Claude Code
+detectou ~25 min antes do próximo `pix-followup` e pausou via
+`docker service scale wp_zapflix-cron=0` antes de prosseguir.
+
+Ver `[[postmortem-cron-cutoff]]` para detalhes.
+
+**Validação executada (28/04/2026 13:23):**
+- DB: 4 PIX pós-cutoff vs 82 pré-cutoff (bloqueados)
+- Disparo manual `pix-followup` retornou `processed: 0, sent: 0`
+- 27 crons ativos (todos sem `#`), env confirmada nos 3 serviços
 
 ---
 
@@ -529,7 +518,7 @@ Operação exclusivamente no banco (sem alteração de código no repositório).
 - [x] short-url.ts usando crypto (26/04/2026)
 - [x] Redis com keyPrefix (26/04/2026)
 - [ ] Monitor reativado e alertas funcionando (regressão em 28/04 — exit 255 há ~34h)
-- [ ] Crons faltantes agendados (parcial: 12/19+ — faltam plan-expiry, renewal-check, pix-followup, trial-followup, drip-campaigns, close-inactive, promote-expired-trials, etc.)
+- [x] Crons faltantes agendados (28/04/2026 — 27 ativos, 15 novos com cutoff de segurança onde aplicável)
 
 ### Semana 4 — Qualidade
 - [x] automations DEFAULT corrigido (27/04/2026)

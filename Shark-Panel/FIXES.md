@@ -5,7 +5,7 @@
 > Antes de qualquer fix: fazer snapshot do servidor no painel do provedor.
 > Relacionado: [[SECURITY]] | [[RUNBOOK]] | [[AUDITORIA_2026-04-28]]
 >
-> **Auditoria 28/04/2026:** ver [[AUDITORIA_2026-04-28]] — Fix 1.4 (MinIO) e Fix 3.5 (monitor) reaberto, Fix 3.6 parcial.
+> **Auditoria 28/04/2026:** ver [[AUDITORIA_2026-04-28]] — Fix 1.4 (MinIO) e Fix 3.5 (monitor) reaberto, Fix 3.6 parcial. **Update 28/04/2026:** Fix 3.5 reconcluído (imagem rebuildada).
 
 ---
 
@@ -335,20 +335,22 @@ Todas as chaves geradas pelo Zapflix agora ficam prefixadas como `shark:messages
 
 Arquivo alterado: `lib/redis.ts`
 
-### Fix 3.5 — Reativar zapflix-monitor — ❌ REGRESSÃO (28/04/2026)
+### Fix 3.5 — Reativar zapflix-monitor — ✅ Concluído (28/04/2026)
 
-**Reaberto em 28/04/2026.** Monitor voltou a falhar — auditoria mostra:
+**Causa raiz:** a imagem `zapflix-monitor:latest` não existia mais no daemon local (provavelmente removida em prune ou nunca rebuildada após mudança no app.py). Swarm tentava rodar a tarefa, falhava no pull (não há registry remoto pra essa tag) e marcava `task: non-zero exit (255)` sem deixar log algum — daí a confusão de "exit 255 sem motivo".
 
-```
-wp_zapflix-monitor   replicated   0/1
-.1   Shutdown   Failed 34 hours ago   "task: non-zero exit (255)"
-.1   Shutdown   Failed 36 hours ago
-.1   Shutdown   Failed 37 hours ago
-```
+**Correção aplicada (28/04/2026):**
 
-Serviço continua configurado com `User: root`, então o fix original (permissão do Docker socket) ainda está aplicado. A causa atual é diferente — exit 255 logo após subir. Investigar logs do container, env vars e conectividade com Postgres/Docker socket.
+1. Atualizei `Dockerfile` em `/root/zapflix-monitor/`:
+   - Adicionei `apt-get install docker.io` (o `app.py` chama `subprocess.run(["docker", "logs", ...])` em `collect_recent_errors`, e a imagem base `python:3.11-slim` não tem o CLI — antes falhava silenciosamente).
+   - Removi o bloco `USER appuser` / `chown` — o serviço já roda com `User: root` (necessário pro docker socket), então o appuser era código morto que confundia o histórico.
+2. `docker build -t zapflix-monitor:latest /root/zapflix-monitor` — imagem reconstruída.
+3. `docker service update --force --image zapflix-monitor:latest wp_zapflix-monitor` — service convergiu.
 
----
+**Validação:**
+- `docker service ps wp_zapflix-monitor` → tarefa Running.
+- `/api/health` retorna `{"status":"ok","timestamp":"2026-04-28T15:42:55..."}` (HTTP 200).
+- Logs limpos: pool de DB criado, coleta inicial concluída, gunicorn em `0.0.0.0:5000`.
 
 **Histórico — fix anterior (26/04/2026):**
 

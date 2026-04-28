@@ -3,7 +3,9 @@
 > Plano priorizado com prompts prontos para o Claude Code executar.
 > **Cada semana é independente — pode ser executada separadamente.**
 > Antes de qualquer fix: fazer snapshot do servidor no painel do provedor.
-> Relacionado: [[SECURITY]] | [[RUNBOOK]]
+> Relacionado: [[SECURITY]] | [[RUNBOOK]] | [[AUDITORIA_2026-04-28]]
+>
+> **Auditoria 28/04/2026:** ver [[AUDITORIA_2026-04-28]] — Fix 1.4 (MinIO) e Fix 3.5 (monitor) reaberto, Fix 3.6 parcial.
 
 ---
 
@@ -80,7 +82,12 @@ Não alterar mais nada.
 Listar os arquivos modificados.
 ```
 
-### Fix 1.4 — Rotacionar credenciais expostas
+### Fix 1.4 — Rotacionar credenciais expostas — ⚠️ PARCIAL
+
+**Status auditado em 28/04/2026:**
+- ✅ GitHub PAT — token novo `ghp_WQfKMK…` em uso no remote do repositório.
+- ✅ CRON_SECRET / CRON_TOKEN — hex de 49 chars no env de `wp_zapflix-web` e `wp_zapflix-cron`.
+- ❌ **MinIO `S3_SECRET_KEY` ainda é `Zapfl1x@M1n10`** — exatamente a senha original deste documento. Não foi rotacionada. Falta gerar 32 chars aleatórios e atualizar em `wp_zapflix-minio`, `wp_zapflix-web`, `wp_zapflix-worker` e `wp_zapflix-cron`.
 
 **Fazer manualmente no Easypanel + GitHub:**
 
@@ -328,36 +335,97 @@ Todas as chaves geradas pelo Zapflix agora ficam prefixadas como `shark:messages
 
 Arquivo alterado: `lib/redis.ts`
 
-### Fix 3.5 — Reativar zapflix-monitor ✅ 26/04/2026
+### Fix 3.5 — Reativar zapflix-monitor — ❌ REGRESSÃO (28/04/2026)
 
-**Concluído.** Monitor estava offline com `PermissionError: [Errno 13] Permission denied` ao tentar acessar o Docker socket — o Dockerfile usa `appuser` (uid=1000) mas o socket `srw-rw----` exige pertencer ao grupo `docker`.
+**Reaberto em 28/04/2026.** Monitor voltou a falhar — auditoria mostra:
 
-**Correção:** `docker service update --user root wp_zapflix-monitor` — serviço agora roda como root e acessa o socket normalmente.
+```
+wp_zapflix-monitor   replicated   0/1
+.1   Shutdown   Failed 34 hours ago   "task: non-zero exit (255)"
+.1   Shutdown   Failed 36 hours ago
+.1   Shutdown   Failed 37 hours ago
+```
 
-**Status atual:**
+Serviço continua configurado com `User: root`, então o fix original (permissão do Docker socket) ainda está aplicado. A causa atual é diferente — exit 255 logo após subir. Investigar logs do container, env vars e conectividade com Postgres/Docker socket.
+
+---
+
+**Histórico — fix anterior (26/04/2026):**
+
+Monitor estava offline com `PermissionError: [Errno 13] Permission denied` ao tentar acessar o Docker socket — o Dockerfile usa `appuser` (uid=1000) mas o socket `srw-rw----` exige pertencer ao grupo `docker`.
+
+**Correção (que ainda está aplicada):** `docker service update --user root wp_zapflix-monitor`.
+
+Naquele momento ficou OK:
 - Flask respondendo `/api/health` com `{"status":"ok"}`
 - Docker metrics: 63 containers monitorados (status `connected`)
 - DB metrics: pool ativo, cache_hit_ratio 85%, 1572 MB
 - `/api/metrics` retornando dados completos
 
-### Fix 3.6 — Agendar crons faltantes
+### Fix 3.6 — Agendar crons faltantes — ⚠️ PARCIAL
+
+**Status auditado em 28/04/2026.** O `crontab.supercronic` em `wp_zapflix-cron.1` já agenda 12 crons:
+
+```
+scheduled-messages (* * * * *)
+metrics-snapshot (0 * * * *)
+purge-jobs (0 6 * * *)
+metrics-snapshot-daily (15 6 * * *)
+weekly-report (0 9 * * 1)
+funnel-processor (* * * * *)
+check-webhook-tokens (*/5 * * * *)
+check-worker-alerts (*/5 * * * *)
+sync-instance-profiles (0 3 * * *)
+check-instance-health (*/15 * * * *)
+process-bulk-send (* * * * *)
+db-retention (0 4 * * 0)
+```
+
+**Existem como rota em `app/api/cron/<nome>/route.ts` mas NÃO estão agendados:**
+
+- `plan-expiry`
+- `renewal-check`
+- `pix-followup`
+- `trial-followup`
+- `drip-campaigns`
+- `close-inactive`
+- `promote-expired-trials`
+- `abandoned-cart`
+- `follow-up`
+- `drip-event-triggers`
+- `increment-warmup-day`
+- `monthly-payroll`
+- `reseller-billing`
+- `reseller-levels`
+- `sigma-backfill-24h`
 
 ```
 Tarefa para Claude Code:
 
-Verificar o arquivo de crontab do supercronic:
-cat /root/Zapflix-Tech/apps/cron/crontab
+Editar o crontab do supercronic dentro do build de wp_zapflix-cron
+(provavelmente apps/cron/crontab ou copiado pelo Dockerfile.cron).
 
-Adicionar os crons que não estão agendados:
-- plan-expiry (verificar vencimentos diariamente)
-- renewal-check (verificar renovações)
-- pix-followup (follow-up de PIX pendentes)
-- trial-followup (follow-up de trials)
+Adicionar entradas no formato:
+*/<freq> * * * * /usr/local/bin/run-crons.sh <nome>
 
-Formato: 0 */6 * * * curl -s -H "x-cron-secret: $CRON_SECRET" \
-  http://wp_zapflix-web:3000/api/cron/<nome>
+Frequências sugeridas (confirmar com Vinicius):
+- plan-expiry            0 8 * * *      diário 8h
+- renewal-check          0 7 * * *      diário 7h
+- pix-followup           */30 * * * *   30 em 30 min
+- trial-followup         0 10 * * *     diário 10h
+- promote-expired-trials 0 1 * * *      diário 1h
+- close-inactive         0 */6 * * *    a cada 6h
+- drip-campaigns         */15 * * * *   a cada 15 min
+- abandoned-cart         0 */2 * * *    a cada 2h
+- follow-up              0 */4 * * *    a cada 4h
+- drip-event-triggers    */5 * * * *    a cada 5 min
+- increment-warmup-day   30 0 * * *     diário 0h30
+- monthly-payroll        0 1 1 * *      dia 1 do mês
+- reseller-billing       0 2 1 * *      dia 1 do mês
+- reseller-levels        0 3 * * 0      domingo 3h
+- sigma-backfill-24h     0 5 * * *      diário 5h
 
-Confirmar frequência adequada para cada cron antes de adicionar.
+Rebuild de wp_zapflix-cron e docker service update --force.
 ```
 
 ---
@@ -440,7 +508,7 @@ Operação exclusivamente no banco (sem alteração de código no repositório).
 - [x] Cron secret hardcoded removido do código (26/04/2026)
 - [x] Cron secret hardcoded removido do crontab do servidor (27/04/2026)
 - [x] GitHub PAT revogado e renovado
-- [x] MinIO secret rotacionado (32 chars)
+- [ ] MinIO secret rotacionado (auditoria 28/04: ainda é a senha original `Zapfl1x@M1n10`)
 - [x] CRON_SECRET rotacionado
 - [x] /api/notifications com auth (27/04/2026)
 - [x] /api/automations/funis/enroll com auth (26/04/2026)
@@ -458,8 +526,8 @@ Operação exclusivamente no banco (sem alteração de código no repositório).
 - [x] PostgREST desligado (27/04/2026)
 - [x] short-url.ts usando crypto (26/04/2026)
 - [x] Redis com keyPrefix (26/04/2026)
-- [x] Monitor reativado e alertas funcionando (26/04/2026)
-- [ ] Crons faltantes agendados
+- [ ] Monitor reativado e alertas funcionando (regressão em 28/04 — exit 255 há ~34h)
+- [ ] Crons faltantes agendados (parcial: 12/19+ — faltam plan-expiry, renewal-check, pix-followup, trial-followup, drip-campaigns, close-inactive, promote-expired-trials, etc.)
 
 ### Semana 4 — Qualidade
 - [x] automations DEFAULT corrigido (27/04/2026)

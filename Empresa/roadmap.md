@@ -1,8 +1,8 @@
 # roadmap.md — Próximas Features e Melhorias
 
 > Visão de produto e prioridades. Separado do [[FIXES]] (que é plano técnico de segurança).
-> Relacionado: [[clientes]]
-> Atualizado em 26/04/2026.
+> Relacionado: [[clientes]] · [[AUDITORIA_2026-04-28]]
+> Atualizado em 28/04/2026 (auditoria contra estado real do servidor).
 
 ---
 
@@ -28,11 +28,13 @@ O Zapflix Tech está funcional com os seguintes módulos:
 | Portas fechadas via iptables | ✅ Concluído | Fix 1.1 |
 | Auth em /api/debug/* e /api/migrate/* | ✅ Concluído | Fix 1.2 |
 | Cron secret hardcoded removido | ✅ Concluído | Fix 1.3 |
-| Rotacionar credenciais (PAT, MinIO, CRON) | ⏳ Pendente | Fix 1.4 |
-| Auth em /api/notifications | ⏳ Pendente | Fix 1.5 |
-| IDOR analytics corrigido | ⏳ Pendente | Fix 2.1 |
-| handleSyncContacts com workspace_id | ⏳ Pendente | Fix 2.2 |
-| Backups automáticos configurados | ⏳ Pendente | Fix 2.5 |
+| Rotacionar PAT do GitHub | ✅ Concluído | Fix 1.4 |
+| Rotacionar CRON_SECRET / CRON_TOKEN | ✅ Concluído | Fix 1.4 |
+| Rotacionar MinIO `S3_SECRET_KEY` | ⏳ Pendente (ainda é a senha original) | Fix 1.4 |
+| Auth em /api/notifications | ✅ Concluído | Fix 1.5 |
+| IDOR analytics corrigido | ✅ Concluído | Fix 2.1 |
+| handleSyncContacts com workspace_id | ✅ Concluído | Fix 2.2 |
+| Backups automáticos configurados | ✅ Concluído | Fix 2.5 |
 
 ---
 
@@ -40,12 +42,12 @@ O Zapflix Tech está funcional com os seguintes módulos:
 
 | Item | Status | Referência |
 |------|--------|-----------|
-| Stack Supabase legado desligado | ⏳ Pendente | Fix 3.1 |
-| PostgREST desligado | ⏳ Pendente | Fix 3.2 |
-| short-url.ts usando crypto | ⏳ Pendente | Fix 3.3 |
-| Redis com keyPrefix zapflix: | ⏳ Pendente | Fix 3.4 |
-| zapflix-monitor reativado | ⏳ Pendente | Fix 3.5 |
-| Crons críticos agendados | ⏳ Pendente | Fix 3.6 |
+| Stack Supabase legado desligado | ✅ Concluído | Fix 3.1 |
+| PostgREST desligado | ✅ Concluído | Fix 3.2 |
+| short-url.ts usando crypto | ✅ Concluído | Fix 3.3 |
+| Redis com keyPrefix `shark:` | ✅ Concluído | Fix 3.4 |
+| zapflix-monitor reativado | ❌ Regrediu (offline desde ~26/04) | Fix 3.5 |
+| Crons críticos agendados | ⚠️ Parcial (12 de ~19 agendados) | Fix 3.6 |
 
 ---
 

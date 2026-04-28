@@ -633,3 +633,49 @@ Renomes simbólicos manuais (4 lugares — bare `emerald` como prop key/value, n
 Whitelabel (`--brand-primary` em `sidebar-nav.tsx:518-525`) continua intacto — usa `whitelabel_settings.primary_color`, não Tailwind classes.
 
 Build SHA: `91bf24c6`. TypeScript `--noEmit` passou. Smoke test: `/api/health` 200, deploy convergiu.
+
+**Migração de tema verde → ciano — Etapa 3 (Passada 1): paleta `green-*` em botões/CTAs (28/04/2026):**
+
+A etapa 2 só limpou `emerald-*`. Tailwind tem **duas paletas verdes** distintas — restavam **332 hits de `*-green-{50..950}` em 61 arquivos**. Decidida abordagem semântica (opção B): trocar só elementos interativos (botões, CTAs, barras de progresso de tempo, ícones decorativos), **manter verde** para sinalização de status, presença online, valor monetário positivo e switches.
+
+**Sed de patterns sempre-botão** (atomic, sem ambiguidade):
+
+| Padrão | Antes | Depois |
+|---|---|---|
+| Pareado | `bg-green-600 hover:bg-green-700` | `bg-cyan-600 hover:bg-cyan-700` |
+| Hover transitions | `hover:bg-green-{400,500,600,700}` | `hover:bg-cyan-{...}` |
+| Active states | `bg-green-700` | `bg-cyan-700` |
+
+**Edits manuais** (16 botões "split" — base verde + hover ciano após sed — corrigidos para 100% ciano):
+
+- Drawer `conversation-details-drawer.tsx`: CTA "Renovar / Cobrar agora" (linha 695), ícone `TrendingUp` da seção Financeiro (658), barra de progresso de validade (746)
+- `checkout-admin/page.tsx`: ícones decorativos `ShoppingCart` (165) e `DollarSign` (467)
+- `cobranca-rapida/page.tsx`: 2 botões outline WhatsApp (416, 665)
+- `trials/page.tsx`: 4 botões de ação "Converter" (989, 999, 1101, 1111)
+- `master/workspaces/page.tsx`: link de unblock (459)
+- `top-bar/.tsx`: 2 botões de conversão de trial (1560, 1729)
+- `gatilhos-tab.tsx`: botão "Disparar manualmente" (603)
+- `monthly-clients-view.tsx`: botão "Cobrar via checkout" (416)
+- `iptv-test-button.tsx`: botão "Salvar" templates (759)
+- `chat-view.tsx`: 3 botões de funil/trial (1621, 1716, 2365)
+- `funis-tab.tsx`: botão outline "Simular" (695)
+- `funnel-simulator.tsx`: toggle "Visão do Cliente" (256)
+- `guided-funnels/page.tsx` + `knowledge/page.tsx`: botões "Instalado" (state ativo)
+- `composer.tsx`: botão hover de envio PIX (651)
+
+**Mantidos verde propositalmente** (status/semântica):
+
+- Switches `data-[state=checked]:bg-green-500` (`iptv-apps`)
+- Status "Online" / "Conectado" (`whatsapp-instances:138-139`) — text/bg/border/dot
+- Bolinha de presença real do contato (`drawer:531-532`)
+- Label "Xd restantes" (drawer:104) — indicador de saúde da assinatura
+- Status "Convertido" (`trials:130`)
+- Badge "Aprovado" (`redemptions:39`), "Ativo" (`notifications-tab:30`)
+- Achievement "Eficiente" (`gamification:104`)
+- Server label `brasil_iptv` (`iptv-test-button:103`)
+- Plan badges promocionais (`checkout-admin:215, 352`, `checkout-dialog:366`)
+- Valor monetário positivo: `text-green-500` em `team/[userId]:815` (`amount >= 0`), `text-green-400` em drawer:670 (`totalPaidCents > 0`)
+
+**Resultado**: 22 arquivos modificados, 50 linhas substituídas (simétrico). Restam ~290 hits de `green-*` em 61 arquivos para a Passada 2 (badges de status com `-500/10`, dots `bg-green-500`, contadores de mensagens recebidas, etc.) — separação clara entre "interação" (já em ciano) e "sinalização" (verde permanece).
+
+Build SHA: `85bec0c2`. TypeScript `--noEmit` passou. Smoke test: `/api/health` 200, deploy convergiu via `docker service update --force`.

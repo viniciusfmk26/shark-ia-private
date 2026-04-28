@@ -611,3 +611,25 @@ Cobre: `bg-primary`, `text-primary`, `border-primary`, focus rings (`*:focus-vis
 Whitelabel não interfere: `--brand-primary` (consumido apenas pela barrinha do item ativo no sidebar) é separado do token `--primary` e segue sendo controlado por `whitelabel_settings.primary_color`.
 
 Build SHA: `a150d85d`. Smoke test: `/api/health` 200, deploy convergiu via `docker service update --force`.
+
+**Migração de tema verde → ciano — Etapa 2: classes Tailwind e hexes literais (28/04/2026):**
+
+Find-and-replace em `app/` + `components/` (`.tsx`, `.ts`, `.css`, sem `node_modules`). 628 ocorrências de `emerald` em ~99 arquivos antes; **123 arquivos modificados** (775 linhas alteradas em ambos os lados, simétrico — confirma apenas substituição). Padrão: word-boundary `\b` para evitar colisão entre prefixos (e.g., `emerald-50` não pegar `emerald-500` antes da hora).
+
+Substituições aplicadas:
+
+| Padrão | Antes | Depois |
+|---|---|---|
+| Tailwind classes | `emerald-{50,100,200,300,400,500,600,700,800,900,950}` | `cyan-{mesmo número}` |
+| Hex `#10b981` (emerald-500 puro) | `#10b981` | `#06b6d4` |
+| Hex `#16a34a` (green-600) | `#16a34a` | `#0891b2` (cyan-600) |
+| Hex `#22c55e` (green-500) | `#22c55e` | `#22d3ee` (cyan-400) |
+| Hex `#059669` (emerald-600) | `#059669` | `#0e7490` (cyan-700) |
+
+Renomes simbólicos manuais (4 lugares — bare `emerald` como prop key/value, não classe CSS): `app/(master)/master/monitoramento/page.tsx` (colorMap key + 2 consumers), `components/automations/followup/overview-tab.tsx` (union type + map key + consumer), `components/automations/followup/campaigns-tab.tsx` (data field).
+
+**1 ocorrência mantida** propositalmente em `app/(dashboard)/templates/page.tsx:116`: `{ key: 'emerald', label: 'Verde', classes: 'bg-cyan-500/10 ...' }`. É um color picker em que a `key` é persistida no banco em templates de usuários — renomear quebraria templates já criados. Classes mapeadas já são cyan; `label: 'Verde'` ficou inconsistente com a cor renderizada (renomear o label é decisão de produto, fora do escopo).
+
+Whitelabel (`--brand-primary` em `sidebar-nav.tsx:518-525`) continua intacto — usa `whitelabel_settings.primary_color`, não Tailwind classes.
+
+Build SHA: `91bf24c6`. TypeScript `--noEmit` passou. Smoke test: `/api/health` 200, deploy convergiu.

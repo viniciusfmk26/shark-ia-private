@@ -160,6 +160,11 @@ O Zapflix Tech está funcional com os seguintes módulos:
 |---------|------|-----------|
 | F-001 Afiliados Fase 1 | 28/04/2026 | reuso resellers + filtro UI · ver [[feature-afiliados]] · commit 38b6f587 |
 | B-001 fix (afiliados + revendedores) | 28/04/2026 | C2 + change-password + skip workspace · ver [[auth-change-password]] · commits c92dc777 + d1a82488 |
+| B-002 fix (workspace seed superadmin) | 28/04/2026 | seed workspace `…0001` + filtros em 6 listagens master · ver [[bugs]] B-002 · commit 4002699d |
+| B-003 fix (audit cast user_id uuid) | 28/04/2026 | `$2::text → $2::uuid` desbloqueou ~10 callers de logAudit · ver [[bugs]] B-003 · commit 4dd33d45 |
+| Esqueci senha (WhatsApp) | 28/04/2026 | token 1h + rate limit 3/h + envio Evolution · ver [[auth-change-password]] · commits 9a14ede6 + e8f5e1fe + 4dd33d45 + e97acdbe |
+| B-004 fix parcial (Evolution name vs UUID) | 28/04/2026 | resolvido em forgot-password; pendente em 3 outros call-sites · ver [[bugs]] B-004 · commit 4dd33d45 |
+| B-005 fix parcial (phone E.164 BR) | 28/04/2026 | quick fix em forgot-password; sanitização na escrita + migração pendentes · ver [[bugs]] B-005 · commit e97acdbe |
 | Aba Problemas no Sales Brain | 26/04/2026 | commit 33c21a4a |
 | Botão cancelar funil no badge "Inscrito" | 26/04/2026 | commit ecde0f1a |
 | Fix cobrança avulsa vs plano mensal (webhook) | 26/04/2026 | commit ecde0f1a |

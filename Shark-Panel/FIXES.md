@@ -679,3 +679,21 @@ A etapa 2 só limpou `emerald-*`. Tailwind tem **duas paletas verdes** distintas
 **Resultado**: 22 arquivos modificados, 50 linhas substituídas (simétrico). Restam ~290 hits de `green-*` em 61 arquivos para a Passada 2 (badges de status com `-500/10`, dots `bg-green-500`, contadores de mensagens recebidas, etc.) — separação clara entre "interação" (já em ciano) e "sinalização" (verde permanece).
 
 Build SHA: `85bec0c2`. TypeScript `--noEmit` passou. Smoke test: `/api/health` 200, deploy convergiu via `docker service update --force`.
+
+**Whitelabel — fix de bugs urgentes (28/04/2026):**
+
+Auditoria identificou três problemas no whitelabel: (1) `sidebar-nav.tsx:665` exibia `whitelabel.brand_name` ignorando o flag `is_active`, ainda que `pickBrand` no provider já o respeitasse; (2) aba Whitelabel mostrava campos `custom_domain` e `custom_css` que **eram persistidos mas nunca lidos** em nenhum lugar do código (UI mentindo para o cliente); (3) duas fontes de verdade no client — `WhitelabelProvider` (context + cache localStorage) coexistia com `useWhitelabel` (hook próprio fazendo fetch + mesmo cache localStorage), sem coordenação.
+
+**Correções aplicadas:**
+
+- `components/layout/sidebar-nav.tsx`: passa a desestruturar `brandName` do `useWhitelabelContext()` (já respeita `is_active` via `pickBrand`) e renderiza `{brandName || 'Painel'}` no lugar de `{whitelabel?.brand_name || ' '}`. Logo (`alt`) preservado.
+- `components/settings/tabs/whitelabel-tab.tsx`: removidas as `<SettingsSection>` "Domínio Personalizado" e "CSS Personalizado" + imports `Badge`/`Textarea` e variáveis `isPro`/`isEnterprise` (órfãs após remoção). **Campos `custom_domain` e `custom_css` mantidos no `form` state e no payload PUT** — dados existentes no banco preservados em saves subsequentes (não são apagados).
+- `hooks/use-whitelabel.ts`: `useWhitelabel()` reescrito para delegar a `useWhitelabelContext()` (retorna `{ config, loading: false }`). Eliminado fetch + cache localStorage duplicado. `WhitelabelConfig` (tipo) e `invalidateWhitelabelCache` mantidos para compat (consumers: `whitelabel-tab.tsx`, `whitelabel-provider.tsx`, `sidebar-nav.tsx`).
+
+**Não tocado (fica como dívida):**
+
+- Colunas órfãs no banco: `login_bg_url`, `logo_dark_url`, `secondary_color`, `accent_color` continuam na tabela `whitelabel_settings` (4 linhas em produção). Sem inputs na UI, sem leitores no código.
+- Tier-gating server-side: PUT `/api/workspace/whitelabel` ainda não valida plano — defesa só no client (cliente do plano free pode salvar via curl).
+- `getWhitelabelForActiveWorkspace` ainda silencia erros (try/catch → null).
+
+Build SHA: `b6ff1726`. TypeScript `--noEmit` passou. Smoke test: `/api/health` 200, deploy convergiu via `docker service update --force --image zapflix-tech:latest wp_zapflix-web`.

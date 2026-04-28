@@ -193,28 +193,38 @@ Confirmado por agregação em `audit_logs`: nenhuma linha com `action` esperado 
 
 ---
 
-### B-004 — Evolution API: forgot-password usava UUID em vez do name — 🟡 PARCIAL
+### B-004 — Evolution API: callers usavam UUID em vez do name — 🟡 EXPANDIDO E PARCIAL (7/11)
 
-**Arquivo:** `app/api/auth/forgot-password/route.ts:67` (resolvido) · 3 outros pendentes
-**Severidade:** Alta (esqueci-senha não funcionava)
+**Arquivo:** múltiplos (ver tabela abaixo)
+**Severidade:** Alta (afetou esqueci-senha, aprovação de revendedor, e mais)
 **Identificado em:** 28/04/2026
-**Status:** 🟡 **Parcial** — fixado em forgot-password; pendente nos outros 3 lugares
+**Status:** 🟡 **Expandido e parcial (7/11)** — investigação 28/04 revelou que B-004 tinha 11+ callers, não 4
 
 **Descrição:**
 A Evolution API espera o **nome** da instância no path (com `encodeURIComponent`), não o `evolution_instance_id` (UUID). Confirmado por teste direto:
 - `POST /message/sendText/Marsbaks` → 400 (instância achada, payload rejeitado)
 - `POST /message/sendText/027390a5-...` → **404 Not Found**
 
-`forgot-password` consultava e passava o UUID, gerando o 404.
+Inicialmente identificado em forgot-password; investigação posterior achou outros 7 callers com o mesmo padrão (uns latentes, outro ativo afetando aprovações de revendedor).
 
-**Impacto:**
-4 lugares com mesmo bug:
-- ✅ `app/api/auth/forgot-password/route.ts` (RESOLVIDO)
-- ⏳ `app/api/resellers/withdraw/route.ts:119` (PENDENTE)
-- ⏳ `app/api/resellers/public-signup/route.ts:39` (PENDENTE)
-- ⏳ `app/api/trial/web/route.ts:329` (PENDENTE)
+**Estado dos 11 callers:**
 
-**Solução parcial aplicada:**
+| Caller | Status | Severidade real | Commit |
+|---|---|---|---|
+| `app/api/auth/forgot-password/route.ts` | ✅ Fixado | Alta — quebrava o fluxo | `4dd33d45` |
+| `app/api/resellers/withdraw/route.ts:119` | ✅ Fixado | Média | `d799ce4b` |
+| `app/api/resellers/public-signup/route.ts:39` | ✅ Fixado | Média | `d799ce4b` |
+| `app/api/trial/web/route.ts:329` | ✅ Fixado | Média | `d799ce4b` |
+| `app/api/admin/resellers/[id]/route.ts:252` | ✅ Fixado | **Alta — ATIVO** (3 aprovações esta semana sem WhatsApp) | `f1a6e667` |
+| `app/api/affiliates/public-signup/route.ts:35` | ✅ Fixado | Média (notifica superadmin) | `f1a6e667` |
+| `app/api/cron/weekly-report/route.ts:200` | ✅ Fixado | Média (latente: 0 workspaces com `report_enabled=true`) | `f1a6e667` |
+| `app/api/pedidos/[id]/recibo/route.ts:311` | ✅ Fixado | Média (sendMedia, UI visível) | `f1a6e667` |
+| `app/api/cron/check-worker-alerts/route.ts:389` | ⏳ Pendente | Baixa (`alerts_triggered=0` sempre) | — |
+| `app/api/cron/reseller-levels/route.ts:96` | ⏳ Pendente | Baixa (schema sem coluna `level` — investigar antes) | — |
+| `app/api/v1/messages/send/route.ts:52` | ⏳ Pendente | Baixa (0 api_tokens existentes) | — |
+| `app/api/iptv/generate-and-send/route.ts:283,576` | ⏳ Pendente | Baixa (caminho raro com `conversationId`) | — |
+
+**Solução aplicada (padrão):**
 ```diff
 -  const { rows } = await query<{ evolution_instance_id: string }>(
 -    `SELECT evolution_instance_id FROM whatsapp_instances WHERE ...`,
@@ -222,46 +232,68 @@ A Evolution API espera o **nome** da instância no path (com `encodeURIComponent
 +    `SELECT name FROM whatsapp_instances WHERE ...`,
     ...
    );
--  const instance = rows[0]?.evolution_instance_id;
-+  const instance = rows[0]?.name;
+-  await fetch(`${url}/message/sendText/${rows[0].evolution_instance_id}`, ...);
++  await fetch(`${url}/message/sendText/${encodeURIComponent(rows[0].name)}`, ...);
 ```
 
-**Commit:** `4dd33d45`
+Em `pedidos/[id]/recibo` a variável foi renomeada `evolutionInstanceId → evolutionInstanceName` para refletir o conteúdo. Em `trial/web` e `iptv/generate-and-send` o `instance.id` (UUID do banco) ainda é necessário para FKs internas (`contact_tags`, `conversations`), então mantido um `instanceName` paralelo só para o path do Evolution.
 
-**Débito:** Aplicar mesmo fix nos 3 call-sites restantes.
+**Commits:** `4dd33d45` (forgot) · `d799ce4b` (3 callers BLOCO 1) · `f1a6e667` (4 callers extras BLOCO 4)
+
+**Débito:** Aplicar mesmo fix nos 4 callers BAIXA pendentes — ver [[../Empresa/débitos]].
 
 ---
 
-### B-005 — phone_whatsapp não normalizado pra E.164 com 55 BR — 🟡 PARCIAL
+### B-005 — phone_whatsapp não normalizado pra E.164 com 55 BR — ✅ RESOLVIDO 28/04/2026
 
-**Arquivo:** `app/api/auth/forgot-password/route.ts:55` (quick fix) · sanitização na escrita pendente
+**Arquivo:** `lib/utils/phone.ts` (novo) · 7 fluxos de escrita refatorados · `app/api/auth/forgot-password/route.ts` refatorado
 **Severidade:** Alta (esqueci-senha falhava com 400 mesmo após B-004 fix)
 **Identificado em:** 28/04/2026
-**Status:** 🟡 **Parcial** — quick fix em forgot-password; falta sanitização na escrita + migração
+**Status:** ✅ **Resolvido** em 28/04/2026 — helper + migration backfill + escrita sanitizada
 
 **Descrição:**
-`nextauth_users.phone_whatsapp` está armazenado **sem código de país** (ex: `53991086613` com 11 dígitos, em vez de `5553991086613`). Evolution API rejeita com `400 Bad Request` quando o número não tem `55`. O código de envio só fazia `replace(/\D/g, '')` — não normalizava.
+`nextauth_users.phone_whatsapp` e `resellers.phone_whatsapp` estavam armazenados **sem código de país** (ex: `53991086613` com 11 dígitos, em vez de `5553991086613`). Evolution API rejeita com `400 Bad Request` quando o número não tem `55`. O código de envio só fazia `replace(/\D/g, '')` — não normalizava.
 
 Validado: `sendText` com `53991086613` → 400; com `5553991086613` → PENDING (entregue).
 
-**Solução quick (b) aplicada em forgot-password:**
-```diff
--  const number = opts.phone.replace(/\D/g, '');
-+  const digits = opts.phone.replace(/\D/g, '');
-+  const number = digits.startsWith('55') ? digits : `55${digits}`;
-```
+**Solução completa aplicada:**
 
-**Commit:** `e97acdbe`
+1. **Helper compartilhado** `lib/utils/phone.ts`:
+   ```typescript
+   export function normalizeBrPhone(input: string | null | undefined): string {
+     if (!input) return '';
+     const digits = input.replace(/\D/g, '');
+     if (!digits) return '';
+     if (digits.startsWith('55')) return digits;
+     return `55${digits}`;
+   }
+   ```
 
-**Débito (B-005 fix completo):**
-- Sanitizar input no momento da **escrita**: `registro`, `cadastro-revendedor`, `change-phone`
-- Migration de backfill nos dados existentes:
-  ```sql
-  UPDATE nextauth_users
-  SET phone_whatsapp = '55' || phone_whatsapp
-  WHERE LENGTH(phone_whatsapp) IN (10, 11)
-    AND NOT phone_whatsapp LIKE '55%';
-  ```
+2. **Migration de backfill** rodada em produção (3 rows: 2 em `nextauth_users` + 1 em `resellers`):
+   ```sql
+   UPDATE nextauth_users SET phone_whatsapp = '55' || phone_whatsapp
+     WHERE LENGTH(phone_whatsapp) IN (10, 11) AND NOT phone_whatsapp LIKE '55%';
+   UPDATE resellers SET phone_whatsapp = '55' || phone_whatsapp
+     WHERE LENGTH(phone_whatsapp) IN (10, 11) AND NOT phone_whatsapp LIKE '55%';
+   ```
+
+3. **Sanitização nos fluxos de escrita** (7 lugares):
+   - `app/api/resellers/register/route.ts` (INSERT users + resellers)
+   - `app/api/resellers/public-signup/route.ts` (INSERT resellers)
+   - `app/api/internal/resellers/route.ts` (INSERT + UPDATE resellers)
+   - `app/api/master/resellers/route.ts` (INSERT resellers)
+   - `app/api/affiliates/public-signup/route.ts` (INSERT resellers)
+   - `app/api/profile/route.ts` (UPDATE nextauth_users)
+   - Validação de tamanho mínimo ajustada de `>=10` → `>=12` (phone agora vem com `55`).
+
+4. **Refactor do `forgot-password/route.ts`** — substituída a lógica inline pelo helper, eliminando o quick fix do commit `e97acdbe`.
+
+**Validação:** Smoke test E2E pós-deploy — `POST /api/auth/forgot-password` para `viniciusfernandesfmk24@gmail.com` (phone backfillado de `5381062741` → `555381062741`) gerou audit `password.reset.requested` com `details.sent=true`.
+
+**Commits:** `e97acdbe` (quick fix inicial) · `33bf9052` (helper + escrita sanitizada + refactor)
+
+**Lições:**
+- `phone-validator.ts` (mais antigo) já tinha lógica robusta similar (`validateAndNormalizePhone`), mas era código órfão — nunca foi usado em fluxo de escrita. Optamos por criar `normalizeBrPhone` simples e drop-in em vez de adaptar o código órfão (escopo controlado).
 
 ---
 

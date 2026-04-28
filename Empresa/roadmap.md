@@ -158,6 +158,8 @@ O Zapflix Tech está funcional com os seguintes módulos:
 
 | Feature | Data | Observação |
 |---------|------|-----------|
+| B-005 fix completo (phone E.164 BR) | 28/04/2026 | helper `normalizeBrPhone` + migration backfill (3 rows) + 7 fluxos de escrita sanitizados + refactor forgot-password · ver [[../Shark-Panel/bugs]] B-005 · commits 33bf9052 |
+| B-004 fix expandido (Evolution name vs UUID) | 28/04/2026 | 7/11 callers fixados (4 BAIXA pendentes em débitos.md). Inclui caller ATIVO em admin/resellers approve · ver [[../Shark-Panel/bugs]] B-004 · commits d799ce4b + f1a6e667 |
 | F-001 Afiliados Fase 1 | 28/04/2026 | reuso resellers + filtro UI · ver [[feature-afiliados]] · commit 38b6f587 |
 | B-001 fix (afiliados + revendedores) | 28/04/2026 | C2 + change-password + skip workspace · ver [[auth-change-password]] · commits c92dc777 + d1a82488 |
 | B-002 fix (workspace seed superadmin) | 28/04/2026 | seed workspace `…0001` + filtros em 6 listagens master · ver [[bugs]] B-002 · commit 4002699d |

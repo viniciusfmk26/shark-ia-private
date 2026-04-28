@@ -134,6 +134,58 @@ Automações criadas sem `workspace_id` explícito ficam no workspace do Superad
 
 ---
 
+### B-001 — public-signup não cria nextauth_users (afiliados + revendedores)
+
+**Arquivos:** `app/api/resellers/public-signup/route.ts` · `app/api/affiliates/public-signup/route.ts` · `app/api/admin/resellers/[id]/route.ts`
+**Severidade:** Alta (revendedor) / Média contornada (afiliado)
+**Identificado em:** 28/04/2026 (durante implementação F-001 fase 1)
+**Status:** 🔧 **Em fix — Opção C2** (28/04/2026)
+
+**Descrição:**
+Ambas as rotas públicas de cadastro inserem em `resellers` com `user_id=NULL`. O fluxo de aprovação (`PATCH /api/admin/resellers/[id]` action='approve') depende de `reseller.user_id` para:
+1. `UPDATE nextauth_users SET status='approved' WHERE id=$user_id` (silenciosamente faz nada)
+2. `INSERT INTO workspaces (..., owner_id) VALUES (..., $user_id)` — **falha** porque `workspaces.owner_id` é `NOT NULL`
+
+**Impacto:**
+- **Revendedor** (preexistente): cadastros públicos aprovados não conseguem logar; aprovação master via UI quebra silenciosamente na criação do workspace.
+- **Afiliado** (F-001 fase 1): contornado por design — afiliado opera 100% via link/`referral_code` + comissão automática no webhook PIX, não precisa logar. Mas aprovação manual também explodia.
+
+**Como reproduzir:**
+1. POST `/api/affiliates/public-signup` com nome/email/whatsapp
+2. Tentar `PATCH /api/admin/resellers/{id}` com `{action: 'approve'}` → erro 500 (NOT NULL violation em workspaces.owner_id)
+
+**Decisão tomada (28/04/2026): Opção C2 + change-password + skip workspace pra afiliado**
+
+Plano de implementação:
+
+1. **Não criar `nextauth_users` no public-signup.** Mantém `user_id=NULL` no signup (rota pública não pede senha).
+2. **No fluxo de aprovação (`action='approve'`):**
+   - Se `reseller.user_id IS NULL`: gerar senha temporária (8 chars legíveis via `crypto.randomBytes`), `bcrypt.hash(pwd, 12)`, `INSERT INTO nextauth_users` com a senha, `UPDATE resellers SET user_id=...`
+   - Se `user_id` existe mas `password IS NULL`: idempotente — gerar senha e fazer UPDATE
+   - Se já tem senha: não gerar nada
+   - **Senha em texto vive APENAS em memória** (variável da request) — vai pro WhatsApp e some
+3. **Skip workspace pra afiliado:** `if (reseller.type !== 'affiliate')` antes do INSERT em workspaces/memberships/subscriptions
+4. **Template do WhatsApp pós-aprovação** ganha bloco condicional com credenciais quando senha foi gerada agora:
+   ```
+   🔐 Acesso ao painel:
+   Email: ${email}
+   Senha temporária: *${tempPassword}*
+   👉 https://appcineflick.com.br/login
+   ⚠️ Anote sua senha — recomendamos trocar após primeiro login.
+   ```
+5. **Sub-tarefa B-001b: criar fluxo de troca de senha** (pré-requisito):
+   - `lib/auth/temp-password.ts` — helper de geração com `crypto.randomBytes` (alfabeto sem ambíguos)
+   - `POST /api/auth/change-password` — autenticado, exige senha atual + nova
+   - `/configuracoes/senha` — UI com 3 campos
+   - Item de menu no `/reseller`
+
+**Risco mitigado:**
+- Senha em texto NÃO persiste em coluna do banco
+- Gerar idempotente (`if password IS NULL`) → re-aprovar não troca senha do usuário
+- Email duplicado: validar contra `nextauth_users.email` antes do INSERT
+
+---
+
 ### BUG-008 — zapflix-monitor offline há mais de 3 semanas
 
 **Serviço:** `wp_zapflix-monitor`

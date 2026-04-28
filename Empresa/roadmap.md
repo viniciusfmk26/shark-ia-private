@@ -30,7 +30,7 @@ O Zapflix Tech está funcional com os seguintes módulos:
 | Cron secret hardcoded removido | ✅ Concluído | Fix 1.3 |
 | Rotacionar PAT do GitHub | ✅ Concluído | Fix 1.4 |
 | Rotacionar CRON_SECRET / CRON_TOKEN | ✅ Concluído | Fix 1.4 |
-| Rotacionar MinIO `S3_SECRET_KEY` | ⏳ Pendente (ainda é a senha original) | Fix 1.4 |
+| Rotacionar MinIO `S3_SECRET_KEY` | ✅ Decidido manter (28/04/2026) | Fix 1.4 |
 | Auth em /api/notifications | ✅ Concluído | Fix 1.5 |
 | IDOR analytics corrigido | ✅ Concluído | Fix 2.1 |
 | handleSyncContacts com workspace_id | ✅ Concluído | Fix 2.2 |

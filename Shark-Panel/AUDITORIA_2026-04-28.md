@@ -22,9 +22,9 @@
 |---|---|---|
 | GitHub PAT | ✅ | ✅ Token novo `ghp_WQfKMK…` em uso no remote |
 | CRON_SECRET / CRON_TOKEN | ✅ | ✅ Hex 49 chars no env de `wp_zapflix-web` |
-| MinIO `S3_SECRET_KEY` | ✅ | ❌ **Ainda é `Zapfl1x@M1n10`** (a senha original do documento, não 32 chars aleatórios). `MINIO_ROOT_PASSWORD` idem. |
+| MinIO `S3_SECRET_KEY` | ✅ | ✅ Mantido por decisão consciente (28/04/2026) — ver Fix 1.4 em [[FIXES]]. |
 
-**Ação requerida:** rotacionar MinIO de fato (gerar 32 chars hex e atualizar em `wp_zapflix-minio`, `wp_zapflix-web`, `wp_zapflix-worker`, `wp_zapflix-cron`).
+**Ação tomada:** decisão consciente de manter (28/04/2026). Análise de risco e gatilhos de reabertura em [[FIXES]] §1.4.
 
 ### Fix 1.5 — Auth /api/notifications — ✅ FEITO
 
@@ -128,7 +128,7 @@ Existem páginas de **cadastro de revendedor** (`/registro-revendedor`, `/(publi
 
 ### 2 itens marcados ✅ no `FIXES.md` mas com problema
 
-- **Fix 1.4 MinIO** — alegado rotacionado (32 chars), real ainda é `Zapfl1x@M1n10`.
+- **Fix 1.4 MinIO** — alegado rotacionado, descobriu-se que ainda era a senha original. Reaberto e fechado em 28/04/2026 com decisão consciente de manter (ver [[FIXES]] §1.4).
 - **Fix 3.5 monitor** — alegado reativado em 26/04, hoje está derrubado há ~34h.
 
 ---

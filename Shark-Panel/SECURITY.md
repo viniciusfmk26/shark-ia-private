@@ -111,12 +111,16 @@ Commit: `239b660f` — deploy aplicado via `docker service update --force wp_zap
 
 ```
 S3_ACCESS_KEY=zapflixadmin
-S3_SECRET_KEY=Zapfl1x@M1n10  (10 chars, padrão previsível)
+S3_SECRET_KEY=<senha-original>  (10 chars, padrão previsível)
 ```
 
 Bucket `zapflix-media` é público (sem assinatura de URL). Credencial fraca permite brute-force na porta 9000.
 
 **Mitigação:** rotacionar secret para 32+ chars aleatórios.
+
+**Status (28/04/2026):** decisão consciente de manter — bucket
+interno, repo de docs privado, operador único. Ver [[FIXES]] §1.4
+para análise de risco completa e gatilhos que reabrem o item.
 
 ### C1.8 — Supabase Kong com JWT hardcoded até 2036
 

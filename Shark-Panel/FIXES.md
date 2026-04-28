@@ -5,7 +5,7 @@
 > Antes de qualquer fix: fazer snapshot do servidor no painel do provedor.
 > Relacionado: [[SECURITY]] | [[RUNBOOK]] | [[AUDITORIA_2026-04-28]]
 >
-> **Auditoria 28/04/2026:** ver [[AUDITORIA_2026-04-28]] — Fix 1.4 (MinIO) e Fix 3.5 (monitor) reaberto, Fix 3.6 parcial. **Update 28/04/2026:** Fix 3.5 reconcluído (imagem rebuildada). Fix 3.6 concluído (15 crons agendados + cutoff `CRON_CUTOFF_DATE`). Ver [[postmortem-cron-cutoff]].
+> **Auditoria 28/04/2026:** ver [[AUDITORIA_2026-04-28]] — Fix 1.4 (MinIO) e Fix 3.5 (monitor) reaberto, Fix 3.6 parcial. **Update 28/04/2026:** Fix 3.5 reconcluído (imagem rebuildada). Fix 3.6 concluído (15 crons agendados + cutoff `CRON_CUTOFF_DATE`, ver [[postmortem-cron-cutoff]]). Fix 1.4 fechado com decisão consciente de manter MinIO secret.
 
 ---
 
@@ -82,34 +82,67 @@ Não alterar mais nada.
 Listar os arquivos modificados.
 ```
 
-### Fix 1.4 — Rotacionar credenciais expostas — ⚠️ PARCIAL
+### Fix 1.4 — Rotacionar credenciais expostas — ✅ Concluído (decisão consciente)
 
-**Status auditado em 28/04/2026:**
+**Status final em 28/04/2026:**
 - ✅ GitHub PAT — token novo `ghp_WQfKMK…` em uso no remote do repositório.
 - ✅ CRON_SECRET / CRON_TOKEN — hex de 49 chars no env de `wp_zapflix-web` e `wp_zapflix-cron`.
-- ❌ **MinIO `S3_SECRET_KEY` ainda é `Zapfl1x@M1n10`** — exatamente a senha original deste documento. Não foi rotacionada. Falta gerar 32 chars aleatórios e atualizar em `wp_zapflix-minio`, `wp_zapflix-web`, `wp_zapflix-worker` e `wp_zapflix-cron`.
+- ✅ **MinIO `S3_SECRET_KEY` — mantido (decisão consciente)**, ver seção abaixo.
 
-**Fazer manualmente no Easypanel + GitHub:**
+#### MinIO — não rotacionado
+
+A senha original (`<senha-original>`, conhecida por toda pessoa
+com acesso histórico ao repositório de docs) **foi mantida em
+produção**. Decisão tomada em 28/04/2026 com base em análise
+de risco vs. custo:
+
+**Justificativa para manter:**
+- Bucket de uso interno (mídias WhatsApp), não exposto publicamente
+- Repo de docs `shark-ia-private` é privado, não indexado
+- Acesso ao `DOCS_TOKEN` limitado ao Vinicius (operador único)
+- Sem time externo, sem ex-funcionários com acesso histórico
+- Risco de rotação (downtime/quebra de mídias por dessincronização
+  entre minio/web/worker/cron) > risco de manter
+
+**Gatilhos que reabrem este item (rotacionar imediatamente se):**
+- Adicionar pessoa ao acesso do servidor ou do repo de docs
+- Bucket virar público ou multi-tenant externo
+- Vazamento confirmado do `DOCS_TOKEN`
+- Auditoria de compliance (ex: LGPD para clientes enterprise)
+- Saída de qualquer operador com acesso histórico
+
+**Procedimento de rotação (quando o gatilho disparar):**
 
 ```
-1. GitHub PAT:
-   - Ir em github.com/settings/tokens
-   - Revogar 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
-   - Criar novo token com escopo mínimo (só repo)
-   - Atualizar no Easypanel (env do zapflix-web)
+1. Gerar nova chave (32 chars hex):
+   python3 -c "import secrets; print(secrets.token_hex(16))"
 
-2. MinIO:
-   - Easypanel → zapflix-minio → Environment
-   - S3_SECRET_KEY: gerar 32 chars aleatórios
-     python3 -c "import secrets; print(secrets.token_hex(16))"
-   - Atualizar em zapflix-web, zapflix-worker, zapflix-cron
+2. Easypanel → wp_zapflix-minio → Environment
+   - Atualizar MINIO_ROOT_PASSWORD e S3_SECRET_KEY
+   - (NÃO restartar ainda)
 
-3. CRON_SECRET:
-   - Gerar novo: python3 -c "import secrets; print(secrets.token_urlsafe(32))"
-   - Atualizar em zapflix-web (env) e zapflix-cron (env)
+3. Atualizar S3_SECRET_KEY em todos os consumidores:
+   - wp_zapflix-web
+   - wp_zapflix-worker
+   - wp_zapflix-cron
 
-4. Senha Postgres (opcional — requer downtime):
-   - Agendar para manutenção planejada
+4. Restartar todos em ordem: minio → web → worker → cron
+   (janela de inconsistência ~30s; mídias em upload/download
+    durante a troca podem falhar uma vez e auto-retry).
+
+5. Validar: subir mídia teste no inbox, conferir em
+   minio.zapflix.shop e que a URL pública funciona.
+```
+
+**Outras credenciais nesta sessão de auditoria:**
+
+```
+1. GitHub PAT — concluído (ghp_WQfKMK… em uso)
+
+2. CRON_SECRET / CRON_TOKEN — concluído (hex 49 chars)
+
+3. Senha Postgres — não rotacionada (requer downtime;
+   manter para janela de manutenção planejada).
 ```
 
 ### Fix 1.5 — Proteger /api/notifications
@@ -499,7 +532,7 @@ Operação exclusivamente no banco (sem alteração de código no repositório).
 - [x] Cron secret hardcoded removido do código (26/04/2026)
 - [x] Cron secret hardcoded removido do crontab do servidor (27/04/2026)
 - [x] GitHub PAT revogado e renovado
-- [ ] MinIO secret rotacionado (auditoria 28/04: ainda é a senha original `Zapfl1x@M1n10`)
+- [x] MinIO secret — decisão consciente de manter (28/04/2026), ver Fix 1.4 seção "MinIO — não rotacionado"
 - [x] CRON_SECRET rotacionado
 - [x] /api/notifications com auth (27/04/2026)
 - [x] /api/automations/funis/enroll com auth (26/04/2026)

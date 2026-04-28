@@ -6,7 +6,7 @@
 
 ---
 
-## Páginas do Master (13)
+## Páginas do Master (16)
 
 | Rota | Função |
 |------|--------|
@@ -20,6 +20,9 @@
 | `/master/revendedores` | Revendedores/afiliados (global) |
 | `/master/audit` | Auditoria global (cross-workspace) |
 | `/master/blacklist` | Blacklist global |
+| `/master/tickets` | Tickets globais (cross-workspace, com coluna Workspace) |
+| `/master/trials` | Trials IPTV globais (cross-workspace, status computado) |
+| `/master/jobs` | Fila de jobs global (cross-workspace) |
 | `/master/configuracoes` | Plataforma (API keys, limites padrão) |
 | `/master/ai-agents` | Agentes IA + vozes ElevenLabs (globais) |
 | `/master/ai-agents/[id]` | Editor de fluxo de agente |
@@ -60,9 +63,9 @@ inbox, contacts, groups, automations, guided-funnels, campaigns, templates, tick
 | `/master/ai-agents` | `/ai` + `/ai-assistant` + `/ai-studio` | **3 páginas de IA no cliente** — alta chance de sobreposição. |
 
 ### ❌ Falta no Master
-- Tickets/Suporte global
-- Trials/Upgrade global (pipeline de conversão)
-- Jobs/Filas global (fila por workspace)
+- ~~Tickets/Suporte global~~ — **Resolvido em 28/04/2026**: `/master/tickets` + `GET /api/master/tickets` (filtros status/priority/workspaceId, JOIN workspaces+contacts+users, guard `isSuperAdmin`).
+- ~~Trials/Upgrade global (pipeline de conversão)~~ — **Resolvido em 28/04/2026**: `/master/trials` + `GET /api/master/trials` (filtro status enum `iptv_trial_status`, computa `expiring`/`expired` em tempo real, mostra minutos restantes).
+- ~~Jobs/Filas global (fila por workspace)~~ — **Resolvido em 28/04/2026**: `/master/jobs` + `GET /api/master/jobs` (filtros status/type/workspaceId, mostra tentativas e último erro).
 - Cupons/Coupons global
 - Webhooks global
 - IPTV Plans/Apps global
@@ -89,5 +92,5 @@ inbox, contacts, groups, automations, guided-funnels, campaigns, templates, tick
 3. ~~Auditar `/ai` × `/ai-studio` × `/ai-assistant`~~ — feito em 27/04/2026 (commit `243de1b6`); APIs diferentes (não são duplicação real); `/ai-assistant` plugada no sidebar.
 4. ~~Remover tabs de settings duplicadas do rodapé de `/monitoring`~~ — feito em 27/04/2026 (commit `ce1a3617`); página agora está no menu (Analytics).
 5. ~~Adicionar no cliente: blacklist do workspace + página "Meu Plano"~~ — **ambos feitos em 27/04/2026**: `/blacklist` (Atendimento) e `/meu-plano` (Configurações).
-6. Adicionar no master: visão global de tickets, trials, jobs e cupons.
+6. ~~Adicionar no master: visão global de tickets, trials, jobs e cupons~~ — **Tickets/Trials/Jobs feitos em 28/04/2026** (commit `1d0958b2`); cupons ainda pendente.
 7. Avaliar `/resellers` (admin client de revendedores) — duplica `/master/revendedores`. **Mantido em 27/04/2026**: plugado no sidebar como "Meus Revendedores" e aprovação/rejeição de saque removida (fica exclusiva no master).

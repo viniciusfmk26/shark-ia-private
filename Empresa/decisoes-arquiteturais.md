@@ -46,12 +46,12 @@ A rota `clients/activate` resolve instância em 3 tiers:
 - **Alinha com padrões já testados:** rotas IPTV admin (`sigma-activate`, `extra-screen`) usam Pattern B; webhook AmploPay usa Pattern A — ambos consolidados há meses
 - **Não introduz nova flag** que precisaria ser sincronizada manualmente em paralelo a `is_payment_confirmation`
 
-### Implementação prevista
+### Implementação
 
 1. ✅ DDL aplicada (BLOCO 3.0)
-2. ⏳ UPDATE `is_payment_confirmation=true` em "Atendimentos Uniflix" (pré-E2E)
-3. ⏳ Refactor de `pickEvolutionInstance()` em `app/api/resellers/clients/activate/route.ts` pra implementar híbrido (hoje só faz Pattern A simplificado)
-4. ⏳ E2E manual
+2. ✅ UPDATE `is_payment_confirmation=true` em "Atendimentos Uniflix" feito pré-E2E
+3. ✅ `pickEvolutionInstance()` em `app/api/resellers/clients/activate/route.ts` implementado híbrido B+A (3 tiers)
+4. ✅ E2E manual concluído 29/04/2026 — Fase 2.2 entregue
 
 ### Risco assumido
 
@@ -123,3 +123,91 @@ Configuração UNIFLIX:
 
 - **Tracking manual de reserva**: hoje o reseller tem que lembrar (via UI) quando migrar. Não há automação que ative o restante automaticamente quando o Sigma principal expirar. Aceitável até feature de "auto-migração".
 - **Servidor reserva não está modelado** explicitamente — é externo ao sistema. Pode virar feature futura (campo `reserve_server_id` em `special_iptv_plans` ou nova tabela).
+
+---
+
+## ADR-003 — `provisionSigmaByPackage` (não reusa fluxo legado)
+
+**Data:** 2026-04-29
+**Status:** Aceita
+
+### Contexto
+
+F-001 Fase 2.2 ativa cliente IPTV via créditos usando `special_iptv_plans`, que já carrega `sigma_package_id` e `sigma_server_id` direto. Já existia `provisionSigmaCustomer()` para o fluxo de checkout — mas ele faz lookup em `sigma_plan_mapping ↔ checkout_plans` para descobrir o package, o que não faz sentido no caso de créditos onde o package é dado pelo plano selecionado pelo reseller.
+
+### Opções consideradas
+
+| # | Opção | Pró | Contra |
+|---|---|---|---|
+| 1 | Adaptar `provisionSigmaCustomer` pra aceitar `(serverId, packageId)` opcional | Único caminho | Função fica multi-modal, condicionalmente pula lookup |
+| 2 | Adicionar entrada fake em `sigma_plan_mapping` pra cada `special_iptv_plans` | Reusa lookup existente | Polui tabela legada com dados sintéticos |
+| 3 | **⭐ Função nova `provisionSigmaByPackage`** | Separação clara entre fluxos | Risco de drift se um for atualizado e o outro não |
+
+### Decisão
+
+**Opção 3 — Função nova, dedicada.**
+
+`provisionSigmaByPackage({ serverId, packageId, customerName, phoneDigits, workspaceId })` em `lib/sigma/provision.ts`:
+- Pula lookup `sigma_plan_mapping`
+- Reusa funções privadas (`findCustomer`, `createCustomer`, `renewCustomer`)
+- Sintetiza um `SigmaMapping` pra preservar shape de `ProvisionResult`
+- Reaproveita o mesmo `parseSigmaDate` pra normalizar `expiresAt`
+
+### Razão
+
+- **Separação clara** entre "fluxo checkout (planKey → mapping → package)" e "fluxo crédito (special_iptv_plans → package)"
+- Manter `provisionSigmaCustomer` simples evita regressão nos clientes que pagam via PIX
+- As duas funções convergem nas chamadas privadas internas (`createCustomer`, `renewCustomer`) — a chamada à API Sigma é idêntica
+
+### Risco assumido
+
+- **Drift**: se o protocolo do Sigma mudar (autenticação, parâmetros), as duas funções precisam ser atualizadas em sincronia. Mitigado pelas funções privadas internas comuns.
+- **Duplicação aparente** — vale a pena revisar consolidação se Fase 3+ trouxer um terceiro fluxo de provisão.
+
+---
+
+## ADR-004 — INSERT subscription FATAL (fail-loud)
+
+**Data:** 2026-04-29
+**Status:** Aceita
+
+### Contexto
+
+No fluxo `clients/activate`:
+1. Sigma cria/renova cliente (chamada externa irreversível — não dá pra rollback)
+2. Sistema debita crédito + grava ledger (em transação atômica)
+3. **DEPOIS** do COMMIT da tx, sistema faz INSERT em `subscriptions` (tracking local)
+
+Se o passo 3 falha, Sigma já criou e crédito já foi debitado. Como reagir?
+
+### Opções consideradas
+
+| # | Opção | Pró | Contra |
+|---|---|---|---|
+| 1 | Log silencioso (`console.warn`) + retornar 200 com creds | Não polui UX do reseller | Admin não sabe que precisa backfillar; subscription "some" do painel |
+| 2 | **⭐ HTTP 500 + creds no payload + audit log** | Admin sabe imediatamente; creds preservadas | UX de erro pra reseller (mas action concluiu) |
+| 3 | Retentar INSERT em loop com backoff | Robustez | Adiciona complexidade; pode mascarar bug estrutural |
+
+### Decisão
+
+**Opção 2 — Fail-loud.**
+
+Se INSERT em `subscriptions` falhar:
+- Audit log `clients.activate.subscription_failed` contendo `username`, `password`, `expires_at`, `server_name`, `reseller_id`
+- Resposta HTTP 500 com payload incluindo `sigma.{username,password,expires_at,server,isVip}` (creds preservadas pra reseller)
+- Reseller vê toast vermelho com mensagem específica
+
+### Razão
+
+- **Visibilidade**: admin sabe que precisa intervir. O log silencioso engole a inconsistência por dias.
+- **Não perde creds**: cliente ainda foi criado no Sigma, e as credenciais voltam pro reseller pra backfill manual
+- **Estado parcial é tratado explicitamente**: subscription FATAL ≠ ROLLBACK do crédito (Sigma já cobrou; rollback seria tracking incoerente)
+
+### Histórico que justifica
+
+Antes desta decisão, o fluxo tinha `try { INSERT } catch { console.warn }`. Bug encontrado em 29/04 madrugada: `parseSigmaDate` ainda não existia, INSERT falhava com `invalid input syntax for type timestamptz: "30/05/2026 14:30:00"`, e `console.warn` ocultava o erro. Reseller via "ativação OK", mas `subscriptions` ficava sem registro. Fix em 2 etapas: (a) criar `parseSigmaDate`, (b) tornar INSERT FATAL pra próxima vez.
+
+### Risco assumido
+
+- **UX:** reseller pode ver erro 500 mesmo com Sigma OK e crédito debitado — confuso. Mitigação: mensagem de erro inclui aviso de "credenciais já criadas, contate suporte".
+- **Recovery manual:** admin precisa SQL pra backfillar subscription quando isso acontecer. Procedimento documentado em RUNBOOK (a fazer).

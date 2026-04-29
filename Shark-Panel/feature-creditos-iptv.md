@@ -85,7 +85,32 @@ Audit logs:
 - Modal compacto com state machine `'select' | 'pix'`
 - Detecta pagamento via comparação `newBalance > pixInitialBalance` → fecha após 2s
 
-## Fase 2.2 — Ativação manual com crédito (em desenvolvimento)
+## Fase 2.2 — ✅ Entregue (29/04/2026)
+
+Revendedor ativa cliente IPTV via crédito pré-comprado.
+
+### O que entrega
+- `/reseller/clientes` — listagem + modal de ativação
+- `POST /api/resellers/clients/activate` — debit atômico + Sigma + WhatsApp
+- WhatsApp automático com creds (algoritmo `pickEvolutionInstance` híbrido B+A — ver ADR-001)
+- Item "Meus Clientes" no menu sidebar
+
+### Schema usado
+- `special_iptv_plans` (slug, sigma_package_id, sigma_server_id, credits_cost, sigma_months, client_months)
+- `resellers.iptv_credits` debitado via tx + `SELECT FOR UPDATE`
+- `reseller_credit_ledger` (kind='usage', balance_after, iptv_customer_id, special_plan_id)
+- `subscriptions` (source='credits', billing_cycle='manual', plan_price_cents=0)
+
+### Bugs corrigidos no caminho
+- `parseSigmaDate()` PT-BR → ISO (B-PARSER-001 ✅)
+- INSERT subscription agora é FATAL (não silencioso) — ADR-003
+
+### Próxima fase (proposta) — ver `roadmap.md`
+- Fase 3 opções A/B/C ainda em discussão.
+
+---
+
+## Fase 2.2 — Pré-release (preservado pra histórico)
 
 **Status:** ⏳ Aguardando E2E manual + UPDATE da flag em prod + commits do código.
 

@@ -64,8 +64,18 @@ O Zapflix Tech está funcional com os seguintes módulos:
 **Status:**
 - ✅ Fase 1 (28/04/2026) — cadastro público + filtro UI no master. Ver [[feature-afiliados]].
 - ✅ B-001 fix (28/04/2026) — Opção C2 + change-password + skip workspace pra afiliado. Ver [[bugs]] B-001 e [[auth-change-password]].
-- ✅ Fase 2 (28/04/2026) — compra de crédito IPTV via PIX + ledger + UI completa. E2E validado em prod. Ver [[../Shark-Panel/feature-creditos-iptv]].
-- 🚧 Fase 2.2 (29/04/2026) — ativação manual em `/reseller/clientes` gastando crédito. **DDL aplicada** + API/UI prontas (não commitadas). **Falta:** E2E + UPDATE flag `is_payment_confirmation` + commits. Ver [[../Empresa/decisoes-arquiteturais]] ADR-001 e ADR-002.
+- ✅ Fase 2.0 (28/04/2026) — compra de crédito IPTV via PIX + ledger + UI completa. E2E validado em prod. Ver [[../Shark-Panel/feature-creditos-iptv]].
+- ✅ Fase 2.1 — detectar pagamento + fechar modal automaticamente (commit `914f8a51`)
+- ✅ **Fase 2.2 (29/04/2026)** — **ativar cliente IPTV via crédito**. `/reseller/clientes` + `POST /api/resellers/clients/activate` + WhatsApp automático com creds. Bugs corrigidos: B-PARSER-001 (parser PT-BR data Sigma), INSERT subscription FATAL (ADR-004). Ver [[../Empresa/decisoes-arquiteturais]] ADR-001 / ADR-003 / ADR-004 e [[../Shark-Panel/feature-creditos-iptv]].
+
+#### Próxima fase (proposta — discutir)
+
+- **Opção A** — histórico/extrato de créditos (transparency pra reseller). Filtros por período, exportação CSV.
+- **Opção B** — notificações push quando cliente IPTV se aproxima do vencimento. Renovação proativa via crédito (1 click).
+- **Opção C** — pular pra **F-002 (Manual Netflix)** ou **F-003 (Landing+Quiz)** — tracks paralelas, menos dependência da Fase 2.
+
+#### Backlog Fase 3+
+
 - ⏳ Fase 3 — webhook condicional (modo `credit` no link do afiliado)
 - ⏳ Fase 4 — UI master pra ver/ajustar saldos
 - ⏳ Fase 5 — notificação WhatsApp ao aprovar (já tem via reuso do approve do reseller)
@@ -161,6 +171,7 @@ O Zapflix Tech está funcional com os seguintes módulos:
 
 | Feature | Data | Observação |
 |---------|------|-----------|
+| **F-001 Fase 2.2 (ativar cliente IPTV via crédito)** | **29/04/2026** | `/reseller/clientes` + `POST /api/resellers/clients/activate` (TX atômica: lock saldo → Sigma → debit + ledger → INSERT subscription → WA com creds) · WhatsApp via algoritmo `pickEvolutionInstance` híbrido B+A (3 tiers) · ADRs 001/003/004 · bugs corrigidos: B-PARSER-001 (parseSigmaDate) + INSERT subscription FATAL · ver [[../Shark-Panel/feature-creditos-iptv]] |
 | F-001 Fase 2 (compra crédito IPTV) | 28/04/2026 | E2E validado em prod (Vinicius pagou R$5 PIX real, saldo 0→1) · pacotes 1/10/50/100 · webhook idempotente via UNIQUE pix_identifier · ver [[../Shark-Panel/feature-creditos-iptv]] · commits 78eebc96 + dae155a2 + f26d383e + 914f8a51 |
 | B-005 fix completo (phone E.164 BR) | 28/04/2026 | helper `normalizeBrPhone` + migration backfill (3 rows) + 7 fluxos de escrita sanitizados + refactor forgot-password · ver [[../Shark-Panel/bugs]] B-005 · commits 33bf9052 |
 | B-004 fix expandido (Evolution name vs UUID) | 28/04/2026 | 7/11 callers fixados (4 BAIXA pendentes em débitos.md). Inclui caller ATIVO em admin/resellers approve · ver [[../Shark-Panel/bugs]] B-004 · commits d799ce4b + f1a6e667 |

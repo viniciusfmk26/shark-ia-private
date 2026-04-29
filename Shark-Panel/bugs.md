@@ -393,6 +393,73 @@ Ambas as rotas públicas de cadastro inseriam em `resellers` com `user_id=NULL`.
 
 ---
 
+### B-009 — Anual e Semestral usam package de 3 meses (MÉDIA)
+
+**Arquivo:** dados de configuração — `special_iptv_plans` workspace Uniflix
+**Severidade:** Média
+**Identificado em:** 29/04/2026 (auditoria pós-Fase 2.2)
+
+**Descrição:**
+Workspace Uniflix tem `special_iptv_plans.annual` e `semiannual` apontando pro `sigma_package_id = 'RYAWRk1jlx'` (3 meses). Cliente pagando R$240 anual recebe só 3 meses no Sigma.
+
+IDs corretos identificados via `GET sharks10.top/api/webhook/package`:
+- 6m → `VpKDaJWRAa` (12000 cents, 6 cred sugerido)
+- 12m → `o231qzL4qz` (24000 cents, 12 cred sugerido)
+
+**Fix:** UPDATE `special_iptv_plans` (SQL pronto em `/root/b-009-sigma-ids.md`).
+
+**Status:** Aguardando aprovação Vinicius (também decidir `credits_cost`).
+
+> Nota: difere do antigo B-007 ("Anual" mapeado pra 3m) — aquele caso era estratégia comercial documentada em ADR-002. B-009 cobre o cenário Fase 2.2 onde `client_months ≠ sigma_months` precisa de package alinhado.
+
+---
+
+### B-AMPLOPAY-001 — webhook não popula subscriptions.iptv_* (MÉDIA)
+
+**Arquivo:** `app/api/payments/amplopay-webhook/route.ts:1418-1442`
+**Severidade:** Média (subscriptions inconsistentes para clientes via checkout)
+**Identificado em:** 29/04/2026
+
+**Descrição:**
+Subscriptions com `source='amplopay'` ficam com `iptv_username = NULL` (idem `iptv_password`, `iptv_server`, `iptv_expires_at`). Credenciais ficam apenas em `payments.metadata` (jsonb).
+
+`sigmaResult` é capturado em `route.ts:1141`, mas o INSERT/UPDATE em `subscriptions` (linhas 1418-1442) ignora os campos mesmo estando no escopo.
+
+**Fix:** incluir `iptv_username/password/server/expires_at` no INSERT/UPDATE. Backfill SQL disponível pra recuperar subscriptions legadas usando `payments.metadata`.
+
+**Status:** Aguardando aprovação Vinicius. Investigação completa em `/root/b-amplopay-001-investigation.md`.
+
+---
+
+### D-SIGMA-painel — visibilidade reseller no painel sharks10.top (BAIXA)
+
+**Arquivo:** investigação operacional
+**Severidade:** Baixa (operacional, não bloqueia ativação)
+**Identificado em:** 29/04/2026
+
+**Descrição:**
+Investigar se cliente criado pelo reseller via Fase 2.2 aparece no painel `sharks10.top` do reseller (e não somente do admin). Vinicius vê cliente "real" sob reseller `adm-shark`, mas o sistema marca cliente teste sob `super-sharkstreaming`.
+
+**Bloqueado em:** precisa contexto da conta admin sharks10.top.
+
+---
+
+### B-PARSER-001 — Sigma DD/MM/YYYY rejeitado pelo Postgres — ✅ RESOLVIDO 29/04/2026
+
+**Arquivo:** `lib/sigma/provision.ts` (`parseSigmaDate`)
+**Severidade:** Alta (Fase 2.2 quebrava no INSERT subscription)
+**Identificado em:** 29/04/2026 (madrugada)
+**Status:** ✅ Resolvido — entregue em Fase 2.2
+
+**Descrição:**
+Sigma retorna `expiresAt` em formato BR (`DD/MM/YYYY HH:MM:SS`). Postgres `TIMESTAMPTZ` rejeita esse formato. Causava erro fatal no INSERT subscription (que ficou exposto após ADR-003 fail-loud).
+
+**Solução:** `parseSigmaDate()` em `lib/sigma/provision.ts` converte BR → ISO antes do INSERT.
+
+**Validação:** subscription `644352438` tem `iptv_expires_at = 2026-05-30` ✓
+
+---
+
 ### BUG-008 — zapflix-monitor offline há mais de 3 semanas
 
 **Serviço:** `wp_zapflix-monitor`

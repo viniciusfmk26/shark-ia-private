@@ -65,7 +65,7 @@ O Zapflix Tech está funcional com os seguintes módulos:
 - ✅ Fase 1 (28/04/2026) — cadastro público + filtro UI no master. Ver [[feature-afiliados]].
 - ✅ B-001 fix (28/04/2026) — Opção C2 + change-password + skip workspace pra afiliado. Ver [[bugs]] B-001 e [[auth-change-password]].
 - ✅ Fase 2 (28/04/2026) — compra de crédito IPTV via PIX + ledger + UI completa. E2E validado em prod. Ver [[../Shark-Panel/feature-creditos-iptv]].
-- ⏳ Fase 2.2 — ativação manual em `/reseller/clientes` (gastar crédito pra ativar IPTV)
+- 🚧 Fase 2.2 (29/04/2026) — ativação manual em `/reseller/clientes` gastando crédito. **DDL aplicada** + API/UI prontas (não commitadas). **Falta:** E2E + UPDATE flag `is_payment_confirmation` + commits. Ver [[../Empresa/decisoes-arquiteturais]] ADR-001 e ADR-002.
 - ⏳ Fase 3 — webhook condicional (modo `credit` no link do afiliado)
 - ⏳ Fase 4 — UI master pra ver/ajustar saldos
 - ⏳ Fase 5 — notificação WhatsApp ao aprovar (já tem via reuso do approve do reseller)

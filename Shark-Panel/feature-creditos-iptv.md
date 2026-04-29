@@ -85,8 +85,74 @@ Audit logs:
 - Modal compacto com state machine `'select' | 'pix'`
 - Detecta pagamento via comparação `newBalance > pixInitialBalance` → fecha após 2s
 
-## Próximas fases
-- **Fase 2.2** — ativação manual em `/reseller/clientes` (gastar crédito pra ativar IPTV via Sigma)
+## Fase 2.2 — Ativação manual com crédito (em desenvolvimento)
+
+**Status:** ⏳ Aguardando E2E manual + UPDATE da flag em prod + commits do código.
+
+### Schema (BLOCO 3.0 aplicado em 29/04/2026)
+
+`special_iptv_plans` agora **multi-tenant** (1 INSERT semestral + 5 ALTER):
+- `+ workspace_id uuid NOT NULL FK → workspaces(id) ON DELETE CASCADE`
+- `+ client_months INTEGER NOT NULL DEFAULT 1` (tempo total que cliente recebe)
+- `+ sigma_package_id TEXT NOT NULL` (ID Sigma)
+- `+ sigma_server_id uuid FK → sigma_servers(id) ON DELETE SET NULL`
+- `RENAME months_sigma → sigma_months` (clareza)
+- `+ UNIQUE (workspace_id, slug)` (substitui `slug` global)
+- `+ idx (workspace_id, is_active, display_order)`
+
+### Configuração UNIFLIX (4 planos)
+
+| slug | name | credits_cost | sigma_months | client_months | sigma_package_id | Modelo |
+|---|---|---|---|---|---|---|
+| monthly | Mensal | 1 | 1 | 1 | BV4D3rLaqZ | direto |
+| quarterly | Trimestral | 3 | 3 | 3 | RYAWRk1jlx | direto |
+| semiannual | Semestral | 3 | 3 | 6 | RYAWRk1jlx | **reserva 3m** |
+| annual | Anual | 3 | 3 | 12 | RYAWRk1jlx | **reserva 9m** |
+
+→ Modelo "reserva" (semestral/anual ativam parcial no Sigma principal, restante migra manual). Ver [[../Empresa/decisoes-arquiteturais]] **ADR-002**.
+
+### Endpoints novos
+
+| Método | Rota | Descrição |
+|---|---|---|
+| POST | `/api/resellers/clients/activate` | `{name, phone, planSlug}` → debita crédito, provisiona Sigma, envia WhatsApp, INSERT subscription |
+| GET | `/api/resellers/clients` | Lista clientes ativados pelo reseller com `status_visual` (active/warning_7d/expired) |
+
+### Fluxo da ativação
+
+1. Reseller preenche form em `/reseller/clientes` (nome, whatsapp, plano)
+2. POST → auth + lookup reseller + lookup plan + balance pre-check
+3. **TX atômica**: SELECT FOR UPDATE saldo → re-check → `provisionSigmaCustomer` (HTTP) → se OK, UPDATE saldo + INSERT ledger com `iptv_customer_id` populado. Se Sigma falhar = throw = ROLLBACK do debit.
+4. Após tx commit (FORA): INSERT `subscriptions`, envio WhatsApp via Evolution
+5. Audit logs: `clients.activate.{requested, confirmed, failed}`
+
+### Helpers e arquivos
+
+- `lib/sigma/build-message.ts` (NOVO) — extrai `buildSigmaMessage` do webhook pra reuso. Aceita `{username, password, serverName, expiresAt, isLifetime?, customTemplate?}`. Webhook ainda usa versão inline → débito **B-008** em [[../Empresa/débitos]].
+- `lib/sigma/provision.ts` (existente) — reusado direto
+- `lib/credits/ledger.ts` (existente) — `useCredits` aceita os campos certos. Não usei o helper na rota porque precisei interleavear Sigma na tx; logica replicada inline pra rollback funcionar.
+- `lib/utils/phone.ts` (existente) — `normalizeBrPhone`
+
+### UI
+
+- `app/(dashboard)/reseller/clientes/page.tsx` — Server Component (auth + reseller lookup + planos + clientes inicial)
+- `app/(dashboard)/reseller/clientes/ClientsClient.tsx` — Client Component (form com máscara phone, radio de planos, lista com status visual ✅⚠️🔴, modal de ativação)
+- Sidebar entry "Meus Clientes" → `/reseller/clientes` (icon `Tv2`)
+
+### Decisões arquiteturais
+
+- **Seleção de instância WhatsApp:** Opção 5 híbrido B+A — cliente em conversa usa instância da conversa, senão fallback `is_payment_confirmation=true`. Ver [[../Empresa/decisoes-arquiteturais]] **ADR-001**.
+- **Modelo reserva (semestral/anual):** ver **ADR-002**.
+
+### Pendências antes do release
+
+1. UPDATE `whatsapp_instances SET is_payment_confirmation=true WHERE name='Atendimentos Uniflix'` em prod
+2. Refactor `pickEvolutionInstance()` na rota activate pra implementar híbrido B+A (hoje só faz Pattern A simplificado)
+3. E2E real: Vinicius ativa cliente teste com crédito
+4. Commits dos 6 arquivos novos/modificados (lib/sigma/build-message.ts, app/api/resellers/clients/{activate,}/route.ts, app/(dashboard)/reseller/clientes/{page,ClientsClient}.tsx, components/layout/sidebar-nav.tsx)
+
+## Próximas fases (depois da 2.2)
+
 - **Fase 3** — webhook condicional: link do afiliado em modo `credit` desconta crédito automático
 - **Fase 4** — UI master pra ajustar/ver saldos arbitrários
 

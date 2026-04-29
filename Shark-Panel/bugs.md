@@ -297,6 +297,26 @@ Validado: `sendText` com `53991086613` → 400; com `5553991086613` → PENDING 
 
 ---
 
+### B-007 — "Anual" mapeado pra pacote de 3 meses Sigma — 📘 NÃO É BUG (estratégia)
+
+**Status:** Reclassificado em 29/04/2026. Documentado como estratégia comercial.
+**Ver:** [[../Empresa/decisoes-arquiteturais]] **ADR-002**.
+
+**Descrição original (descartada):**
+Auditoria do catálogo Sigma via API (`GET sharks10.top/api/webhook/package`) revelou que `sigma_plan_mapping.sigma_package_id = 'RYAWRk1jlx'` configurado pra plan_key `anual-s1` é, no Sigma, **"3 MESES COMPLETO COM ADULTOS"** — não 12. Inicialmente parecia bug crítico afetando todos clientes que compraram "Anual" no `/comprar?ref=X`.
+
+**Esclarecimento (29/04):**
+Vinicius: "não é bug, é estratégia — modelo reseller com servidor reserva."
+
+Cliente paga "Anual" (12 meses), sistema ativa apenas 3 meses no Sigma principal, restantes 9 meses ficam em "reserva" — Vinicius migra manualmente quando expira no principal. Modelo financeiramente saudável e em produção há tempo.
+
+**Ação tomada:**
+- Schema atualizado em F-001 Fase 2.2 BLOCO 3.0: `special_iptv_plans` agora tem `client_months` (12) e `sigma_months` (3) separados — modelo formalizado
+- UI `/reseller/clientes` mostra "Restam migrar: N meses (reserva)" pra reseller saber o que tem em reserva
+- Detalhes em [[feature-creditos-iptv]]
+
+---
+
 ### B-006 — AmploPay URL legada em 4 rotas — 🟡 PARCIAL (1/4)
 
 **Arquivos:** `app/api/resellers/credits/purchase/route.ts` (✅ fixado) · `app/api/workspace/buy-credits/route.ts` (⏳) · `app/api/workspace/buy-agent/route.ts` (⏳) · `app/api/workspace/plan/subscribe/route.ts` (⏳)

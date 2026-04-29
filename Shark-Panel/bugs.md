@@ -297,6 +297,43 @@ Validado: `sendText` com `53991086613` → 400; com `5553991086613` → PENDING 
 
 ---
 
+### B-006 — AmploPay URL legada em 4 rotas — 🟡 PARCIAL (1/4)
+
+**Arquivos:** `app/api/resellers/credits/purchase/route.ts` (✅ fixado) · `app/api/workspace/buy-credits/route.ts` (⏳) · `app/api/workspace/buy-agent/route.ts` (⏳) · `app/api/workspace/plan/subscribe/route.ts` (⏳)
+**Severidade:** Alta (3 rotas latentes ainda quebradas em produção)
+**Identificado em:** 28/04/2026 (durante E2E do F-001 Fase 2)
+
+**Descrição:**
+Rotas antigas usam URL legada `https://api.amplopay.com/gateway/pix/receive` que retorna **404 com HTML do Next.js** (AmploPay aparentemente desligou esse endpoint sem aviso). URL atual: `https://app.amplopay.com/api/v1/gateway/pix/receive`.
+
+**Diferenças entre as APIs:**
+| Aspecto | Legada (404 hoje) | Atual |
+|---|---|---|
+| URL | `api.amplopay.com/gateway/pix/receive` | `app.amplopay.com/api/v1/gateway/pix/receive` |
+| Auth | `Authorization: Bearer ${secretKey}` | `x-public-key` + `x-secret-key` (2 headers) |
+| Body | `customer: {name, email}` | `client: {name, email, phone, document}` |
+| Phone | opcional | **obrigatório** (string) |
+| Document/CPF | não enviado | **obrigatório** |
+| Response | `pixCode` / `qrCode` | `pix.code` / `pix.base64` |
+
+**Estado por rota:**
+| Rota | Status | Commits |
+|---|---|---|
+| `app/api/resellers/credits/purchase` | ✅ Fixado | `dae155a2` (URL+auth+body) + `f26d383e` (phone fallback) |
+| `app/api/workspace/buy-credits` | ⏳ Pendente | — |
+| `app/api/workspace/buy-agent` | ⏳ Pendente | — |
+| `app/api/workspace/plan/subscribe` | ⏳ Pendente | — |
+
+**Como descobri:**
+E2E manual do F-001 Fase 2 — Vinicius clicou "Comprar créditos" e recebeu toast "Falha de rede". Logs do server mostraram `[resellers/credits/purchase] amplopay non-ok status=404 body=<!DOCTYPE html>...`. Comparei com `checkout/create-pix/route.ts` (que funciona) e identifiquei a divergência de URL/headers/body.
+
+**Validação do fix:**
+Curl manual contra AmploPay: sem `client.phone` → 400 GATEWAY_INVALID_DATA com Zod error path `["client","phone"]`. Com phone → 200 + `pix.code` + `pix.base64`. Pagamento real (R$ 5) creditou normalmente — ver [[feature-creditos-iptv]].
+
+**Débito:** As 3 rotas restantes precisam do mesmo fix. São fluxos com baixo volume (compra de créditos AI workspace, compra de agente, assinatura de plano workspace) — provavelmente por isso passou despercebido. Listadas em [[../Empresa/débitos]].
+
+---
+
 ### B-001 — public-signup não cria nextauth_users (afiliados + revendedores) — ✅ RESOLVIDO 28/04/2026
 
 **Arquivos:** `app/api/resellers/public-signup/route.ts` · `app/api/affiliates/public-signup/route.ts` · `app/api/admin/resellers/[id]/route.ts`

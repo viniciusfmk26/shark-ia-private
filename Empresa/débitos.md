@@ -19,9 +19,11 @@
 | ID | Título | Severidade | Por que adiado | Notas |
 |----|--------|------------|----------------|-------|
 | B-004-rest | 4 callers BAIXOS de Evolution name vs UUID | Baixa | Investigação 28/04 mostrou que não são exercitados | `cron/check-worker-alerts:389` (alerts_triggered=0 sempre) · `cron/reseller-levels:96` (schema sem coluna `level`) · `v1/messages/send:52` (0 api_tokens existentes) · `iptv/generate-and-send:283,576` (caminho raro com conversationId) |
+| B-006 | AmploPay URL legada em 3 rotas pendentes | Alta | Fix focado em F-001 Fase 2; outras rotas têm baixo volume | `app/api/workspace/buy-credits` · `app/api/workspace/buy-agent` · `app/api/workspace/plan/subscribe` — todas usam `api.amplopay.com/gateway/pix/receive` (404 hoje). Diff necessário em [[../Shark-Panel/bugs]] B-006. |
 | reseller-levels-schema | Coluna `level` parece não existir em `resellers` | Investigar | Bloqueador implícito do B-004-rest no item `reseller-levels` | Cron `cron/reseller-levels` referencia coluna `level` mas `\d resellers` não mostra. Verificar se cron está silenciosamente quebrado em outro ponto antes do bug do path. |
-| F-001 Fase 2 | Crédito avulso (1 cred = 1 cliente/mês) | Produto | Próxima fase planejada de afiliados | Ver [[roadmap]] F-001 |
-| F-001 Fase 4 | Auto-aprovação opcional (toggle no master) | Produto | Próxima fase planejada de afiliados | Ver [[roadmap]] F-001 |
+| F-001 Fase 2.2 | Ativação manual em `/reseller/clientes` (gastar crédito) | Produto | Continuação F-001 Fase 2 (compra ✅ entregue) | Ver [[roadmap]] F-001 e [[../Shark-Panel/feature-creditos-iptv]] |
+| F-001 Fase 3 | Webhook condicional (modo `credit` no link do afiliado) | Produto | Próxima fase de afiliados | Ver [[roadmap]] F-001 |
+| F-001 Fase 4 | UI master pra ver/ajustar saldos | Produto | Próxima fase de afiliados | Ver [[roadmap]] F-001 |
 | Política de senha fraca | Hoje só exige `length >= 8` | Baixa | Sem incidente reportado | Sem maiúscula/número/símbolo · sem rate limit no `/api/auth/change-password` |
 | BUG-001 | `handleSyncContacts` cross-tenant (sem `workspace_id` no UPDATE) | Alta | Fix planejado em FIXES 2.2 | Ver [[../Shark-Panel/bugs]] BUG-001 |
 | BUG-002 | `automations.workspace_id` DEFAULT errado | Média | Fix planejado em FIXES 4.1 | Migration `097_fix_automations_default.sql` pendente |

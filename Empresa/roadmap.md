@@ -64,9 +64,12 @@ O Zapflix Tech está funcional com os seguintes módulos:
 **Status:**
 - ✅ Fase 1 (28/04/2026) — cadastro público + filtro UI no master. Ver [[feature-afiliados]].
 - ✅ B-001 fix (28/04/2026) — Opção C2 + change-password + skip workspace pra afiliado. Ver [[bugs]] B-001 e [[auth-change-password]].
-- ⏳ Fase 2 — crédito avulso (1 cred = 1 cliente/mês)
-- ⏳ Fase 3 — notificação WhatsApp ao aprovar (já tem via reuso do approve do reseller)
-- ⏳ Fase 4 — auto-aprovação opcional (toggle no master)
+- ✅ Fase 2 (28/04/2026) — compra de crédito IPTV via PIX + ledger + UI completa. E2E validado em prod. Ver [[../Shark-Panel/feature-creditos-iptv]].
+- ⏳ Fase 2.2 — ativação manual em `/reseller/clientes` (gastar crédito pra ativar IPTV)
+- ⏳ Fase 3 — webhook condicional (modo `credit` no link do afiliado)
+- ⏳ Fase 4 — UI master pra ver/ajustar saldos
+- ⏳ Fase 5 — notificação WhatsApp ao aprovar (já tem via reuso do approve do reseller)
+- ⏳ Fase 6 — auto-aprovação opcional (toggle no master)
 
 ---
 
@@ -158,6 +161,7 @@ O Zapflix Tech está funcional com os seguintes módulos:
 
 | Feature | Data | Observação |
 |---------|------|-----------|
+| F-001 Fase 2 (compra crédito IPTV) | 28/04/2026 | E2E validado em prod (Vinicius pagou R$5 PIX real, saldo 0→1) · pacotes 1/10/50/100 · webhook idempotente via UNIQUE pix_identifier · ver [[../Shark-Panel/feature-creditos-iptv]] · commits 78eebc96 + dae155a2 + f26d383e + 914f8a51 |
 | B-005 fix completo (phone E.164 BR) | 28/04/2026 | helper `normalizeBrPhone` + migration backfill (3 rows) + 7 fluxos de escrita sanitizados + refactor forgot-password · ver [[../Shark-Panel/bugs]] B-005 · commits 33bf9052 |
 | B-004 fix expandido (Evolution name vs UUID) | 28/04/2026 | 7/11 callers fixados (4 BAIXA pendentes em débitos.md). Inclui caller ATIVO em admin/resellers approve · ver [[../Shark-Panel/bugs]] B-004 · commits d799ce4b + f1a6e667 |
 | F-001 Afiliados Fase 1 | 28/04/2026 | reuso resellers + filtro UI · ver [[feature-afiliados]] · commit 38b6f587 |

@@ -55,3 +55,41 @@ Deep-dive sales-brain 29/04 (`auditorias/2026-04-29-multitenant-bugs/deep-sales-
 
 ## Commits relacionados
 - f48af9b8 — Fix do código + backfill SQL
+
+---
+
+## Update 29/04/2026 (segunda parte da sessão)
+
+Após shipping do `onPaymentConfirmed`, continuamos com `onTrialExpired`.
+
+**Fix aplicado:**
+- Plugado `onTrialExpired` no cron `promote-expired-trials` (commit `b2946863`)
+- Mesma estrutura do AmploPay fix (resolve contactId, try/catch fail-safe)
+
+**Backfill: 219 opportunities → 'lost'**
+
+| Stage      | Antes | Depois | Δ    |
+|------------|-------|--------|------|
+| trial      | 1412  | 1193   | -219 |
+| **lost**   | **0** | **219**| +219 |
+
+### Bug arquitetural descoberto: phone format chaos
+JOIN literal: 80 matches | JOIN normalizado: 218 matches
+- `sales_opportunities.contact_phone`: 59% JID, 41% digits
+- `iptv_trials.contact_phone`: 100% digits
+- `payments.contact_phone`: 100% digits
+
+Toda query JOIN/NOT EXISTS por contact_phone EXIGE `REGEXP_REPLACE` em ambos os lados.
+
+### Estado final do pipeline (29/04/2026 fim do dia)
+```
+lead      |   430
+lost      |   219   (NOVO via cron promote-expired-trials)
+qualified |   625
+trial     |  1193
+won       |   147   (NOVO via webhook AmploPay)
+```
+
+### Commits relacionados
+- `f48af9b8` — onPaymentConfirmed + backfill 147 won
+- `b2946863` — onTrialExpired + backfill 219 lost

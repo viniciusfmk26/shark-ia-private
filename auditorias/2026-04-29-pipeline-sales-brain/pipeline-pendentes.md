@@ -91,3 +91,39 @@ DEFERIDO: itens 1-5 acima
 **Razão:** escopo isolado = commit limpo, risco baixo, fácil reverter se algo der errado.
 
 Investigação completa em `/root/deep-sales-brain.md`.
+
+---
+
+## ⚠️ Bug arquitetural descoberto 29/04 (deferido)
+
+### Phone Format Chaos
+Tabelas com formatos diferentes de contact_phone:
+- `sales_opportunities.contact_phone`: 59% JID `557991...@s.whatsapp.net`, 41% digits
+- `iptv_trials.contact_phone`: 100% digits
+- `payments.contact_phone`: 100% digits
+
+**Impacto:** Toda query JOIN/NOT EXISTS por contact_phone EXIGE
+`REGEXP_REPLACE(contact_phone, '[^0-9]', '', 'g')` em ambos os lados.
+
+Sem normalização: matches silenciosamente perdidos.
+
+**Encontrado durante backfill onTrialExpired (29/04):**
+- JOIN literal: 80 matches
+- JOIN normalizado: 218 matches (real)
+- Diferença = 138 opps que falsamente apareciam no critério
+
+### worker.ts:6504 mal classifica como stage='trial'
+
+A IA detecta intent='trial' (cliente expressou interesse) e o worker
+marca `sales_opportunity.stage='trial'` DIRETAMENTE, mesmo sem o
+cliente pegar trial real (não há row em `iptv_trials`).
+
+**Impacto atual:** 892 opps com stage='trial' MAS sem iptv_trials =
+falso positivo. Métricas de "conversion rate trial→won" subdimensionam.
+
+**Solução futura:**
+- Worker só deve promover pra 'trial' se houver INSERT em iptv_trials
+- Sem iptv_trials → manter stage='qualified'
+- Os 892 atuais precisam ser reclassificados manualmente
+
+**Tempo estimado:** 1-2h (refactor + reclassificação SQL)

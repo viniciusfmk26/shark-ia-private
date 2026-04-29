@@ -568,6 +568,52 @@ Resultado: 2.600 opportunities acumuladas, 0 won/lost. Sales Brain dashboard mos
 
 ---
 
+### B-PIPELINE-TRIAL-EXPIRED-001 — onTrialExpired desconectado do cron (ALTA) — ✅ RESOLVIDO 29/04/2026
+
+**Arquivos:**
+- `app/api/cron/promote-expired-trials/route.ts:292-308` (chamada faltando)
+- `lib/sales-brain/pipeline.ts` (função `onTrialExpired` existente desde 24/03/2026)
+
+**Severidade:** Alta (trials expirados não viravam 'lost', distorcia métricas de churn)
+**Identificado em:** 29/04/2026 (continuação do fix B-PIPELINE-SALES-BRAIN-001)
+**Status:** ✅ Resolvido — commit `b2946863` + backfill 219 opportunities
+
+**Descrição:**
+Função `onTrialExpired` em `lib/sales-brain/pipeline.ts` existia há 5 semanas mas não era chamada por nenhum cron. Trials que expiravam sem conversão ficavam eternamente em `stage='trial'` no funil, distorcendo a contagem de "trials ativos" no Sales Brain dashboard.
+
+**Fix aplicado:**
+- Plugado `onTrialExpired` no cron `promote-expired-trials` após `UPDATE iptv_trials.promoted_at = NOW()`
+- Resolve `contactId` via SELECT em contacts por phone normalizado (REGEXP_REPLACE)
+- `try/catch` local pra fail-safe (não bloqueia promoção do trial principal)
+- Pula chamada se `conversationId` não disponível
+
+**Backfill aplicado em prod (219 opps):**
+- 100% workspace Uniflix
+- Critério: `stage='trial' AND iptv_trials.expires_at < NOW() AND stage_changed_at < NOW() - 7 days AND sem pagamento posterior`
+- Range guard ±5 (BETWEEN 215 AND 225) absorveu drift natural do sistema vivo
+- 219 `sales_events 'trial_expired'` criados com `metadata.source='backfill_29_04'` e `metadata.iptv_trial_id` rastreável
+- `stage_changed_at` usa data REAL do `iptv_trial.expires_at` (não NOW())
+
+**Bug arquitetural descoberto durante o backfill:** phone format chaos
+- `sales_opportunities.contact_phone`: 59% JID `557991...@s.whatsapp.net`, 41% digits
+- `iptv_trials.contact_phone`: 100% digits
+- `payments.contact_phone`: 100% digits
+- JOIN literal por `contact_phone`: 80 matches
+- JOIN normalizado (REGEXP_REPLACE em ambos os lados): 218 matches
+- Toda query phone-based EXIGE normalização nos 2 lados pra evitar matches silenciosamente perdidos
+
+**Pendentes ainda catalogados** em `auditorias/2026-04-29-pipeline-sales-brain/pipeline-pendentes.md`:
+- 892 opps com `stage='trial'` SEM `iptv_trials` = falso positivo IA (worker.ts:6504 mal classifica intent IA como stage='trial')
+- `onTicketResolved` em endpoints de resolve conversation
+- `onPaymentConfirmed` em outros webhooks (manual, etc)
+- `onPlanExpired` no cron plan-expiry
+- Auto-lost cron pra opps abandonadas (>90d, futuro)
+- Phone format chaos (refactor 2-3h)
+
+**Como descoberto:** investigação direta + deep-dive sales-brain 29/04/2026 (continuação natural do B-PIPELINE-SALES-BRAIN-001).
+
+---
+
 ### BUG-008 — zapflix-monitor offline há mais de 3 semanas
 
 **Serviço:** `wp_zapflix-monitor`

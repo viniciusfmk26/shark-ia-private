@@ -526,6 +526,48 @@ Cinco endpoints faziam `SELECT ... FROM ai_provider_settings LIMIT 1` sem `WHERE
 
 ---
 
+### B-PIPELINE-SALES-BRAIN-001 — Pipeline sales_opportunities desconectado do webhook (ALTA) — ✅ RESOLVIDO 29/04/2026
+
+**Arquivos:**
+- `lib/sales-brain/pipeline.ts` (5 funções pendentes desde 24/03/2026)
+- `app/api/payments/amplopay-webhook/route.ts:1664-1674` (chamada faltando)
+
+**Severidade:** Alta (Sales Brain dashboard mostrava métricas mentirosas)
+**Identificado em:** 29/04/2026 (deep-dive sales-brain)
+**Status:** ✅ Resolvido — commit `f48af9b8` + backfill 147 opportunities
+
+**Descrição:**
+`lib/sales-brain/pipeline.ts` foi criado em 24/03/2026 com 5 funções pra atualizar `sales_opportunities` em eventos chave (`onPaymentConfirmed`, `onTrialCreated`, `onTrialExpired`, `onTicketResolved`, `onPlanExpired`). Nenhuma delas era chamada em produção (5 semanas dead code).
+
+Resultado: 2.600 opportunities acumuladas, 0 won/lost. Sales Brain dashboard mostrava conversion rate = 0% mesmo com 385 pagamentos confirmados via AmploPay.
+
+**Fix aplicado:**
+- Plugado `onPaymentConfirmed` no webhook AmploPay (entre cancel follow-ups e mark conversation as resolved)
+- Resolve `contactId` via SELECT em contacts por `normalizedPhone`
+- `try/catch` local pra fail-safe (não bloqueia confirmação de pagamento se pipeline falhar)
+- Trocado `console.error` → `logger.warn` estruturado (pino) nas 5 funções pra observability
+
+**Backfill aplicado (Opção C):**
+- 147 opportunities promovidas a 'won' (86 trial, 41 lead, 20 qualified)
+- Critério: `payment.created_at >= so.stage_changed_at` (evita falsos won por phone duplicado)
+- 100% workspace Uniflix
+- 147 `sales_events 'payment_received'` criados com `metadata.source='backfill_29_04'`
+
+**Por que Opção C ao invés de A:**
+- Opção A (UPDATE direto por phone): 367 opps mas 597 com phone duplicado → falsos won
+- Opção C: 147 opps com critério temporal (pagamento veio APÓS opp aberta) → semântica correta
+
+**Pendentes catalogados** em `auditorias/2026-04-29-pipeline-sales-brain/pipeline-pendentes.md`:
+- `onTrialExpired` no cron plan-expiry (1.198 trials >30d candidatos)
+- `onTicketResolved` em endpoints de resolve conversation
+- `onPaymentConfirmed` em outros webhooks (manual, etc)
+- `onPlanExpired` no cron plan-expiry
+- Auto-lost cron pra opps abandonadas (>90d, futuro)
+
+**Como descoberto:** deep-dive sales-brain 29/04 (`auditorias/2026-04-29-multitenant-bugs/deep-sales-brain.md`).
+
+---
+
 ### BUG-008 — zapflix-monitor offline há mais de 3 semanas
 
 **Serviço:** `wp_zapflix-monitor`

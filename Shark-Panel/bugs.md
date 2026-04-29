@@ -2,7 +2,7 @@
 
 > Registro de bugs conhecidos que ainda não foram corrigidos.
 > Problemas de **segurança** estão em [[SECURITY]]. Plano de correção em [[FIXES]].
-> Atualizado em 26/04/2026.
+> Atualizado em 29/04/2026.
 
 ---
 
@@ -393,11 +393,12 @@ Ambas as rotas públicas de cadastro inseriam em `resellers` com `user_id=NULL`.
 
 ---
 
-### B-009 — Anual e Semestral usam package de 3 meses (MÉDIA)
+### B-009 — Anual e Semestral usam package de 3 meses (MÉDIA) — ✅ RESOLVIDO 29/04/2026
 
 **Arquivo:** dados de configuração — `special_iptv_plans` workspace Uniflix
 **Severidade:** Média
 **Identificado em:** 29/04/2026 (auditoria pós-Fase 2.2)
+**Status:** ✅ Resolvido — UPDATE aplicado direto no banco (29/04/2026)
 
 **Descrição:**
 Workspace Uniflix tem `special_iptv_plans.annual` e `semiannual` apontando pro `sigma_package_id = 'RYAWRk1jlx'` (3 meses). Cliente pagando R$240 anual recebe só 3 meses no Sigma.
@@ -406,28 +407,37 @@ IDs corretos identificados via `GET sharks10.top/api/webhook/package`:
 - 6m → `VpKDaJWRAa` (12000 cents, 6 cred sugerido)
 - 12m → `o231qzL4qz` (24000 cents, 12 cred sugerido)
 
-**Fix:** UPDATE `special_iptv_plans` (SQL pronto em `/root/b-009-sigma-ids.md`).
+**Fix aplicado:**
+```sql
+UPDATE special_iptv_plans SET sigma_package_id='VpKDaJWRAa', sigma_months=6
+  WHERE workspace_id='00000000-0000-0000-0000-000000000002' AND slug='semiannual';
+UPDATE special_iptv_plans SET sigma_package_id='o231qzL4qz', sigma_months=12
+  WHERE workspace_id='00000000-0000-0000-0000-000000000002' AND slug='annual';
+```
 
-**Status:** Aguardando aprovação Vinicius (também decidir `credits_cost`).
+**Validação:** SELECT pós-fix mostra annual=`o231qzL4qz`/12m, semiannual=`VpKDaJWRAa`/6m.
 
 > Nota: difere do antigo B-007 ("Anual" mapeado pra 3m) — aquele caso era estratégia comercial documentada em ADR-002. B-009 cobre o cenário Fase 2.2 onde `client_months ≠ sigma_months` precisa de package alinhado.
 
 ---
 
-### B-AMPLOPAY-001 — webhook não popula subscriptions.iptv_* (MÉDIA)
+### B-AMPLOPAY-001 — webhook não popula subscriptions.iptv_* (MÉDIA) — ✅ RESOLVIDO 29/04/2026
 
 **Arquivo:** `app/api/payments/amplopay-webhook/route.ts:1418-1442`
 **Severidade:** Média (subscriptions inconsistentes para clientes via checkout)
 **Identificado em:** 29/04/2026
+**Status:** ✅ Resolvido — commit `edff115d` + backfill de 169 subscriptions
 
 **Descrição:**
 Subscriptions com `source='amplopay'` ficam com `iptv_username = NULL` (idem `iptv_password`, `iptv_server`, `iptv_expires_at`). Credenciais ficam apenas em `payments.metadata` (jsonb).
 
 `sigmaResult` é capturado em `route.ts:1141`, mas o INSERT/UPDATE em `subscriptions` (linhas 1418-1442) ignora os campos mesmo estando no escopo.
 
-**Fix:** incluir `iptv_username/password/server/expires_at` no INSERT/UPDATE. Backfill SQL disponível pra recuperar subscriptions legadas usando `payments.metadata`.
+**Fix aplicado:**
+- Código: INSERT/UPDATE em `subscriptions` agora incluem `iptv_username/password/server/expires_at` (commit `edff115d`)
+- Backfill: 169 subscriptions legadas restauradas a partir de `payments.metadata`
 
-**Status:** Aguardando aprovação Vinicius. Investigação completa em `/root/b-amplopay-001-investigation.md`.
+**Investigação completa:** `/root/b-amplopay-001-investigation.md`.
 
 ---
 
@@ -457,6 +467,62 @@ Sigma retorna `expiresAt` em formato BR (`DD/MM/YYYY HH:MM:SS`). Postgres `TIMES
 **Solução:** `parseSigmaDate()` em `lib/sigma/provision.ts` converte BR → ISO antes do INSERT.
 
 **Validação:** subscription `644352438` tem `iptv_expires_at = 2026-05-30` ✓
+
+---
+
+### B-DRIP-001 — Cron drip-campaigns INSERT em coluna inexistente — ✅ RESOLVIDO 29/04/2026
+
+**Arquivo:** `app/api/cron/drip-campaigns/route.ts:118`
+**Severidade:** Alta (drips ativos = 0 mensagens enviadas, falha silenciosa)
+**Identificado em:** 29/04/2026 (deep-dive automações)
+**Status:** ✅ Resolvido — commit `ec2061b9`
+
+**Descrição:**
+Cron `drip-campaigns` fazia `INSERT INTO jobs (type, payload_json, status, run_at)`. A coluna `payload_json` **não existe** em `jobs` — o nome correto é `payload` (`jsonb NOT NULL`). INSERT falhava silenciosamente via try/catch externo.
+
+Adicionalmente o INSERT não passava `workspace_id` (NOT NULL na tabela) nem `max_attempts`, divergindo do padrão dos outros 20+ INSERTs em `jobs` espalhados pelo projeto.
+
+**Fix aplicado:**
+- `payload_json` → `payload` (jsonb NOT NULL)
+- adicionado `workspace_id` (vindo de `campaign.workspace_id`, já no escopo)
+- adicionado `max_attempts: 3` (padrão dos demais INSERTs)
+- cast `$2::jsonb` explícito
+
+**Como descoberto:** deep-dive 29/04 (`auditorias/2026-04-29-multitenant-bugs/deep-drip.md`). Confirmado via `information_schema.columns` que `payload_json` não existe.
+
+**Impacto:** Adoption atual de `drip_campaigns` = 0 → fix preventivo, sem necessidade de backfill.
+
+---
+
+### B-MULTITENANT-001 — 5 endpoints IA sem WHERE workspace_id em ai_provider_settings — ✅ RESOLVIDO 29/04/2026
+
+**Arquivos:**
+- `app/api/ai-studio/chat/route.ts`
+- `app/api/ai/agent-chat/route.ts`
+- `app/api/ai/assistant/route.ts`
+- `app/api/ai/generate-agent-prompt/route.ts`
+- `app/api/ai/generate-followup/route.ts`
+
+**Severidade:** Alta (vazamento de API key cross-tenant — \$\$ + GDPR)
+**Identificado em:** 29/04/2026 (deep-dive IA)
+**Status:** ✅ Resolvido — commit `962ecdb4`
+
+**Descrição:**
+Cinco endpoints faziam `SELECT ... FROM ai_provider_settings LIMIT 1` sem `WHERE workspace_id`. Como a tabela é multi-tenant, workspaces sem AI configurada acabavam consumindo a key configurada por outro tenant (na prática: chupavam a key do `shark-panel`, único com `openai_api_key` em produção).
+
+**Fix aplicado:**
+- `getWorkspaceIdSafe()` resolvido após `auth()`
+- Query: `WHERE workspace_id = $1 LIMIT 1`
+- Resposta `400 { error: 'no_config' }` se workspace sem AI configurada
+- Mantido `422 { error: 'no_key' }` se row existe mas key vazia
+
+**Estado prod ao corrigir:** apenas `shark-panel` tinha `openai_api_key` configurada → vazamento real era unidirecional. Fix preventivo antes de adicionar IA pra outros tenants.
+
+**Pendentes (decisão arquitetural):**
+- `app/api/master/ai-agents/[id]/app-flow/chat` — rota master, cross-tenant por design (deve usar workspace do agent, não do user)
+- `app/api/sales-brain/process` — comentário explícito "global", inconsistente com outros 10 endpoints
+
+**Como descoberto:** deep-dive 29/04 (`auditorias/2026-04-29-multitenant-bugs/deep-ia.md`).
 
 ---
 

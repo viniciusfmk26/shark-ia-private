@@ -232,3 +232,45 @@ Cobertura escolhida: **rotas não-`migrate/`** (ficaram para depois — são one
 **Verificação pós-fix:**
 - `npx tsc --noEmit` limpo nos 7 arquivos modificados.
 
+## Atualização 30/04 — tabela `whatsapp_instances`
+
+A contagem inicial ("12 SEM workspace_id") **subestimou** novamente. Grep cirúrgico (janela de 10 linhas) retornou **53 hits em ~30 arquivos**. Após exclusão das 3 categorias intencionalmente cross-tenant — `migrate/*` (admin one-shot, deferido), `admin/*` (gateado por `requireSuperAdmin`), `cron/*` (gateado por `CRON_SECRET`) — sobraram **18 arquivos** para análise.
+
+A triagem revelou que `whatsapp_instances` tem um padrão de risco distinto das tabelas anteriores: a maioria das rotas faz `SELECT` workspace-filtrado **antes** do `UPDATE`/`DELETE`, mas as mutações finais usam `WHERE id = $1` apenas. Transitivamente seguro, mas **frágil**: qualquer refactor que reuse o `instanceId` num contexto sem o filtro upstream abre IDOR. Por isso o fix uniforme é defense-in-depth (`AND workspace_id` em toda mutação).
+
+| # | Rota | Categoria | Risco | Fix aplicado |
+|---|------|-----------|-------|--------------|
+| **🔴 CRÍTICOS (4)** | | | | |
+| 1 | `app/api/media/[messageId]/route.ts` | B (sem auth) | 🔴 **CRÍTICO** — endpoint público que retornava bytes de mídia (imagem/áudio/vídeo) de qualquer tenant pelo `messageId` | `auth()` + `getWorkspaceIdSafe()` + `AND workspace_id = $2` na SELECT messages (linha 60). NOTA: muda comportamento — frontend mesma-origem já envia cookie, mas mídia do **webchat público** vai 401 e precisará de tratamento separado em rodada futura. |
+| 2 | `app/api/ai/transcribe/route.ts` | B | 🔴 Cross-tenant via `messageId` — autenticado podia passar messageId de outro tenant, ler o áudio, transcrever, e a transcrição era SALVA de volta no message do outro tenant | `AND workspace_id = $2` em SELECT messages (linha 59), SELECT conversations (97), SELECT whatsapp_instances (105) e UPDATE messages (207). |
+| 3 | `app/api/inbox/conversations/[id]/send-product/route.ts` | B | 🔴 Cross-tenant via `conversationId` — autenticado podia disparar produto via instância WhatsApp de outro tenant para contato de outro tenant | `getWorkspaceIdSafe()` + `AND workspace_id = $userWorkspaceId` na SELECT conversations (linha 27). |
+| 4 | `app/api/payments/send-receipt/route.ts` | B | 🔴 Cross-tenant via `paymentId` — autenticado podia disparar recibo via WhatsApp de outro tenant ao contato de outro tenant | `getWorkspaceIdSafe()` + `AND p.workspace_id = $userWorkspaceId` no SELECT payments (linha 22). |
+| **🟡 DEFENSE-IN-DEPTH (9)** | | | | |
+| 5 | `app/api/whatsapp/instances/[id]/logout/route.ts` | B | 🟡 Transitivo (instanceId já validado upstream) | `AND workspace_id` no UPDATE linha 82 |
+| 6 | `app/api/whatsapp/instances/[id]/reconnect/route.ts` | B | 🟡 Transitivo | `AND workspace_id` no UPDATE linha 91 |
+| 7 | `app/api/instances/[id]/route.ts` (PATCH+DELETE) | B | 🟡 Workspace check explícito antes, mas UPDATE/DELETE finais sem cross | `AND workspace_id` no UPDATE PATCH (linha 101) e DELETE (205) |
+| 8 | `app/api/instances/[id]/connect/route.ts` | B | 🟡 5 UPDATEs por `id` apenas | `AND workspace_id` em 5 UPDATEs (128, 191, 241, 277, 288) |
+| 9 | `app/api/instances/[id]/sync-profile/route.ts` | B | 🟡 2 UPDATEs por `id` | `AND workspace_id` em UPDATE 119 e 134 |
+| 10 | `app/api/instances/sync-evolution/route.ts` | B | 🟡 UPDATE por `existingId` (vem de mapa workspace-filtrado) | `AND workspace_id` no UPDATE linha 109 |
+| 11 | `app/api/inbox/conversations/[id]/avatar/route.ts` | B | 🟡 SELECT instance por `id` — instance_id vem de conversation já validada | `AND workspace_id` no SELECT linha 58 |
+| 12 | `app/api/groups/bulk-send/stats/route.ts` | B | 🟡 UPDATE inline em loop por `instance_id` | `AND workspace_id` no UPDATE linha 58 |
+| 13 | `app/api/groups/route.ts` | B | 🟡 UPDATE por `inst.id` (vem de `getConnectedInstances(workspaceId)`) | `AND workspace_id` no UPDATE linha 36 |
+
+**Falsos positivos / OK por design (5 arquivos sem fix):**
+- `app/api/webhook/route.ts` e `app/api/webhook/connection/route.ts` — webhooks token-auth onde `workspace_id` é DERIVADO de `whatsapp_instances` por `evolution_instance_id`/`name` (globalmente únicos no Evolution). Design correto da categoria C.
+- `app/api/resellers/withdraw/route.ts`, `app/api/resellers/public-signup/route.ts`, `app/api/affiliates/public-signup/route.ts` — SELECT global de instância por `phone_number LIKE '%superadmin%'` para notificar o admin via WhatsApp. Intencional, não é leak de tenant.
+
+**Lições adicionais:**
+1. **Defense-in-depth importa**: 9 dos 13 fixes não corrigiram um bug atual (tudo era transitivamente seguro), mas blindam contra refactors. Custo (4 caracteres `AND ws_id = $X`) é trivial perto do risco.
+2. **`media/[messageId]` é exemplo do anti-padrão clássico**: rota "interna" (chamada pelo frontend) que não está em `EXCLUDED_PREFIXES` mas também não tinha `auth()`. Provavelmente confiava no middleware, mas o middleware só valida sessão — não valida tenancy. **Toda rota que recebe id de URL precisa filtrar por workspace ou validar ownership.**
+3. **Webhooks (categoria C)** continuam sendo o padrão correto: derivar workspace de uma entidade autenticada por token (instance, conversation, etc), nunca usar `getWorkspaceIdSafe()`.
+
+**Pendências residuais (fora do escopo desta task):**
+- `app/api/media/[messageId]` agora exige sessão — mídia do **webchat público** (visitantes anônimos) vai retornar 401. Precisa rodada separada para implementar fluxo via `webchat_sessions.session_token` (similar ao que fizemos em `webchat/messages`).
+- `app/api/migrate/**/*` que tocam `whatsapp_instances` — admin one-shot, prioridade menor.
+- Webhooks `webhook/connection` UPDATE por `name` (linha 75) podem casar instances cross-workspace se houver colisão de nome. Evolution garante unicidade global, mas vale auditar se DB tem constraint.
+
+**Verificação pós-fix:**
+- `npx tsc --noEmit` limpo nos 13 arquivos modificados.
+- Grep cirúrgico continua listando hits para esses arquivos — esperado, pois o filtro está nas mutações via `AND workspace_id`. O `grep -L` continua retornando vazio.
+

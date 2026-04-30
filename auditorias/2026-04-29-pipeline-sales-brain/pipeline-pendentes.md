@@ -127,3 +127,22 @@ falso positivo. Métricas de "conversion rate trial→won" subdimensionam.
 - Os 892 atuais precisam ser reclassificados manualmente
 
 **Tempo estimado:** 1-2h (refactor + reclassificação SQL)
+
+---
+
+## Pendentes adicionais (sessão noturna 29/04 — security)
+
+### Multi-tenant
+- [ ] sync/route.ts (whatsapp_instances sem workspace_id)
+- [ ] sync-contacts/route.ts (whatsapp_instances sem workspace_id)
+- [ ] messages 6 arquivos sem workspace_id (PII sensível)
+- [ ] contacts 5 arquivos sem workspace_id
+- [ ] payments/iptv_trials ~6 arquivos sem workspace_id
+
+### Anti-patterns catalogados
+- [ ] _shared.isAuthorized fail-OPEN (rotation/_shared.ts)
+- [ ] SELECT * → SELECT explícito (webhook/route.ts)
+
+### Outros
+- [ ] 892 opps falso positivo IA (worker.ts:6504)
+- [ ] Phone format chaos refactor

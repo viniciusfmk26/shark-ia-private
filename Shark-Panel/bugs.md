@@ -614,6 +614,118 @@ Função `onTrialExpired` em `lib/sales-brain/pipeline.ts` existia há 5 semanas
 
 ---
 
+### B-SECRETS-AMPLOPAY-001 — Token AmploPay logado em vazamento potencial (BAIXA) — ✅ RESOLVIDO 29/04/2026
+
+**Arquivo:** `app/api/payments/amplopay-webhook/route.ts:717`
+**Severidade:** Baixa-Média (vazamento condicional em logs)
+**Identificado em:** 29/04/2026 (auditoria noturna de secrets)
+**Status:** ✅ Resolvido — commit `fbbb99dc`
+
+**Descrição:**
+Webhook AmploPay logava o `token` completo recebido quando auth falhava:
+```ts
+logger.warn('[AmploPay Webhook] Token inválido recebido: %s', String(token));
+```
+Vetor real (raro): se a AmploPay rotacionar o token e o env do app não for atualizado, durante a janela de drift os tokens **válidos atuais** caem nesse warn — vazando o token novo nos logs.
+
+**Fix:** Mascarar com prefixo+sufixo (4 chars cada lado) + structured logging (pino):
+```ts
+const masked = token ? `${String(token).slice(0,4)}...${String(token).slice(-4)}` : '<missing>';
+logger.warn({ tokenPreview: masked }, '[AmploPay Webhook] Token inválido recebido');
+```
+
+**Como descoberto:** Auditoria de secrets noturna (`Shark-Panel/seguranca/2026-04-29-secrets.md`).
+
+---
+
+### B-ADMIN-001 — 3 vulnerabilidades em /api/admin/* (CRÍTICA + ALTA + MÉDIA) — ✅ RESOLVIDO 29/04/2026
+
+**Arquivos:**
+- `app/api/admin/media-debug/route.ts:8` (hardcoded secret)
+- `app/api/admin/debug-jobs/route.ts` (zero auth)
+- `app/api/admin/fix-contact-plans/route.ts` (privilege escalation)
+
+**Severidade:** 🔴 CRÍTICO + 🔴 ALTO + 🟡 MÉDIO
+**Identificado em:** 29/04/2026 (auditoria de /api/admin/* noturna)
+**Status:** ✅ Resolvido — commit `27cf4cfe`
+
+**Descrição:**
+
+**🔴 CRÍTICO — media-debug:** Hardcoded secret `'zapflix-admin-2024'` no código. Quem clonou o repo (ou viu commit) tem acesso permanente. Não rotacionável sem deploy. Endpoint expõe `messages.raw_payload` completo do WhatsApp.
+
+**🔴 ALTO — debug-jobs:** Zero auth — middleware exige login mas qualquer user de qualquer tenant podia hitar. Retornava últimos 20 jobs `send_message` GLOBAIS: texto, telefone destino, attachments, payload. Data leak entre tenants.
+
+**🟡 MÉDIO — fix-contact-plans:** `isAuthorized()` só verificava se user estava logado. Qualquer member do workspace (agent/viewer) podia chamar `bulk_set_plan` e atualizar `custom_fields.iptv_plan` de N contatos. Privilege escalation dentro do tenant.
+
+**Fixes aplicados:**
+- `media-debug`: `'zapflix-admin-2024'` → `process.env.ADMIN_MIGRATION_SECRET`
+- `debug-jobs`: header `x-admin-secret` ou query `?secret=...`
+- `fix-contact-plans`: `getUserRole(workspaceId, userId)` da `lib/auth/rbac.ts`, exige `owner|admin`
+
+**Pegadinha durante fix:** tabela é `workspace_memberships` (não `workspace_members`). Proposta inicial teria crashado runtime.
+
+**Smoke tests pós-deploy:**
+- `media-debug` sem secret: 401 ✓
+- `media-debug` com secret antigo `zapflix-admin-2024`: 401 ✓
+- `debug-jobs` sem secret: 401 ✓
+
+**Como descoberto:** Auditoria noturna de /api/admin/* (`Shark-Panel/auditorias-tecnicas/2026-04-29-noite-master-admin.md`). 25 endpoints total, 22 já protegidos, 3 com problemas.
+
+---
+
+### B-INSTANCES-WEBHOOK-001 — Cross-tenant em /api/instances/[id]/webhook (CRÍTICO) — ✅ RESOLVIDO 29/04/2026
+
+**Arquivo:** `app/api/instances/[id]/webhook/route.ts`
+**Severidade:** 🔴 Crítico (cross-tenant write em recurso operacional)
+**Identificado em:** 29/04/2026 (auditoria multi-tenant whatsapp_instances)
+**Status:** ✅ Resolvido — commit `91143f01`
+
+**Descrição:**
+Endpoint POST sem qualquer auth/workspace check. **3 queries vazando entre tenants:**
+
+1. `SELECT settings FROM workspace_settings LIMIT 1` — pegava settings do PRIMEIRO workspace, não do user
+2. `SELECT * FROM whatsapp_instances WHERE id = $1` — qualquer user com UUID lia dados completos da instância de outro tenant
+3. `UPDATE whatsapp_instances SET webhook_url = $1 WHERE id = $2` — permitia sobrescrever `webhook_url` e redirecionar mensagens
+
+**Vetor:** UUIDs de instância vazam por dashboards, logs, exports CSV. Atacante autenticado em workspace A poderia redirecionar webhook de workspace B pra servidor próprio e interceptar mensagens.
+
+**Fix aplicado:**
+- Import `getWorkspaceIdSafe`
+- `workspaceId` resolvido no início do try block
+- `workspace_settings`: `WHERE workspace_id = $1`
+- `whatsapp_instances` SELECT: `AND workspace_id = $2`
+- `whatsapp_instances` UPDATE: `AND workspace_id = $3` (defesa em profundidade)
+- Padrão idêntico aos 8 sibling endpoints (`pause`, `resume`, `payment-confirmation`, etc)
+
+**Bonus discovered:** `workspace_settings` LIMIT 1 sem filtro também era cross-tenant leak. Não estava no relatório original — encontrado durante a aplicação do fix.
+
+**Como descoberto:** Investigação multi-tenant whatsapp_instances (`Shark-Panel/seguranca/2026-04-29-multitenant-amplo.md`). 14 arquivos flagados, 13 OK por design, 2 BUGS reais.
+
+---
+
+### B-ROTATION-STATS-001 — rotation/stats sem workspace filter (MÉDIA) — ✅ RESOLVIDO 29/04/2026
+
+**Arquivo:** `app/api/rotation/stats/route.ts`
+**Severidade:** 🟡 Média (info disclosure por phone)
+**Identificado em:** 29/04/2026 (auditoria multi-tenant whatsapp_instances)
+**Status:** ✅ Resolvido — commit `91143f01`
+
+**Descrição:**
+Inconsistência arquitetural: 3 dos 4 endpoints rotation (`instances`, `next`, `status`) filtram por `ROTATION_WORKSPACE_SLUG`. `stats` era o outlier — buscava instância por phone GLOBALMENTE.
+
+Severidade média porque já é protegido por `ROTATION_API_KEY` (serviço externo), mas viola padrão dos irmãos e vaza connection status/limit da instância de qualquer tenant que tenha rotation ativa.
+
+**Fix aplicado:**
+- Import `ROTATION_WORKSPACE_SLUG`
+- Query param `?workspace=` override (mesmo padrão dos irmãos)
+- `JOIN workspaces w ON w.id = wi.workspace_id WHERE w.slug = $1`
+
+**Pendente catalogado:** `_shared.isAuthorized` é fail-OPEN (`if (!apiKey) return true`). Em prod a env existe, mas se sumir endpoints viram públicos. Catalogado em `pipeline-pendentes.md` para próxima sessão.
+
+**Como descoberto:** Mesma investigação multi-tenant. Inconsistência detectada comparando os 4 endpoints rotation lado a lado.
+
+---
+
 ### BUG-008 — zapflix-monitor offline há mais de 3 semanas
 
 **Serviço:** `wp_zapflix-monitor`

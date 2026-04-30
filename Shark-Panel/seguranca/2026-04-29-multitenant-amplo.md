@@ -199,3 +199,36 @@ Após inspeção manual, sobraram **3 rotas** que precisavam de correção, com 
 - `grep -L "workspace_id"` ainda lista as 2 rotas inbox — esperado e correto, pois o filtro está no helper.
 - `npx tsc --noEmit` limpo nos 3 arquivos.
 
+## Atualização 30/04 — tabela `contacts`
+
+A contagem inicial ("5 SEM workspace_id") **subestimou** o problema. `grep -L "workspace_id"` deu zero arquivos (todos tinham o token em alguma query), mas **não pegou queries individuais sem filtro** dentro de arquivos parcialmente seguros. Foi necessário um grep cirúrgico de janela (`grep -rn "FROM contacts|UPDATE contacts|INSERT INTO contacts" + checagem de 8 linhas em volta`) para enumerar todas as queries.
+
+Cobertura escolhida: **rotas não-`migrate/`** (ficaram para depois — são one-shot admin). Triagem dos suspeitos resultou em **9 arquivos** (2 falsos positivos + 7 com fix).
+
+| Rota | Categoria | Risco | Fix aplicado |
+|------|-----------|-------|--------------|
+| `app/api/iptv/unlink-username/route.ts` | B (session) | 🔴 IDOR sem auth — anônimo podia desvincular IPTV de qualquer tenant pelo phone | `auth()` + `getWorkspaceIdSafe()` + filtro workspace na SELECT por phone (linha 37), no SELECT/UPDATE de `custom_fields`, e no DELETE de `iptv_trials` |
+| `app/api/iptv/link-username/route.ts` | C (workspace via body/safe) | 🔴 IDOR cross-tenant — phone match global pegava `id` do tenant errado e UPDATEs derivados gravavam no contato errado | `AND workspace_id = $resolvedWorkspaceId` na SELECT por phone (linha 50). UPDATEs `WHERE id` ficam seguros por transitividade. |
+| `app/api/automations/funis/enroll/route.ts` | B (session) | 🔴 Cross-tenant — POST autenticado podia pegar `contact_id` de outro tenant via match de phone e inscrever em funil próprio (info leak + poison) | `AND workspace_id = $2` na SELECT linha 122. Lookup só roda se `workspaceId` resolveu. |
+| `app/api/metrics/webhook-worker/route.ts` | B (session) | 🟠 Sem auth, retornava `id/created_at/source` de contacts de **todos** os tenants para qualquer requester | `requireSuperAdmin()` no GET (mantém comportamento global, fecha o leak — dashboard master continua funcionando) |
+| `app/api/contacts/backfill-clients/route.ts` | A (helper filtra) | 🟡 Sem `auth()`, anônimo caía no `DEFAULT_WORKSPACE_ID` via `getWorkspaceIdSafe`; também sem role check | `auth()` + 401. (Role check de admin segue como pendência — fora do escopo desta task.) |
+| `app/api/payments/webhook/route.ts` | C (token webhook) | 🟡 Defense-in-depth — `contactId` já vinha de SELECT workspace-filtrada, mas UPDATEs `WHERE id` não cruzavam | `AND workspace_id = $X` em 3 UPDATEs (224, 265, 300). Param dinâmico para o UPDATE de plano (vitalicio/não vitalicio). |
+| `app/api/payments/amplopay-webhook/route.ts` | C (token webhook) | 🟡 Mesma situação — `contactId` vem de `findOrCreateContact(workspaceId, ...)`; UPDATEs `WHERE id` ganharam guarda extra | `AND workspace_id = $X` em 5 UPDATEs (508, 568, 582, 1223, 1249). |
+
+**Falsos positivos do grep cirúrgico (não precisaram de fix):**
+- `app/api/contacts/route.ts` — `whereClauses` é dinâmico mas seeded com `'c.workspace_id = $1'`.
+- `app/api/contacts/[id]/reseller/route.ts` — todas queries já têm `AND workspace_id = $2`.
+
+**Lições adicionais:**
+1. O método `grep -L` falha em arquivos parcialmente seguros (algumas queries com filtro, outras sem). Use grep cirúrgico com janela ou auditoria por query.
+2. UPDATE/SELECT `WHERE id = $1` é seguro **apenas se** o `id` veio de uma SELECT já filtrada por workspace. Quando o `id` vem de match por `phone`/identificador externo, **falsa segurança por transitividade**.
+3. Para webhooks (`token`-auth), o `workspaceId` vem de uma entidade vinculada (ex.: `checkout_orders`, `webchat_sessions`). Defense-in-depth (`AND workspace_id`) nos UPDATE protege contra futuro código que reutilize o `contactId` num contexto sem o filtro upstream.
+
+**Pendências residuais (fora do escopo desta task):**
+- `app/api/iptv/link-username/route.ts` PATCH (linhas 218-240) — busca `iptv_trials` por `trialId` sem filtro de workspace; o `trial.contact_id` resultante alimenta `UPDATE contacts WHERE id = $2`. Mesma classe de IDOR, mas em `iptv_trials`, não em `contacts`.
+- `app/api/automations/funis/enroll/route.ts` GET (linha 192) — sem auth e sem workspace.
+- Rotas em `app/api/migrate/**/*` que tocam `contacts` — admin one-shot, prioridade menor.
+
+**Verificação pós-fix:**
+- `npx tsc --noEmit` limpo nos 7 arquivos modificados.
+

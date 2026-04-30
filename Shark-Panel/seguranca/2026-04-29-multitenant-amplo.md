@@ -306,7 +306,12 @@ WHERE id = $1 AND workspace_id = $2 AND conversation_id = $3
 
 **Verificação:**
 - `npx tsc --noEmit` limpo.
-- Smoke-test live pendente — requer deploy. Session token de teste reservado: `3aee8bed-50a4-4048-90a8-1efbeefecdc5` (workspace `00000000-0000-0000-0000-000000000002`, conversa `b574acf9-29ef-4810-ba38-4b7dffb83a29`). Conversa não tem mensagem com mídia ainda; teste 200 precisa de messageId real após deploy.
+- ✅ Smoke-test live validado em produção (deploy `7eca2a7a1e74`, 30/04 04:09 UTC):
+  - Sem auth → 401 ✅
+  - Token bogus → 401 ✅
+  - Token válido + messageId fake → **404** ✅ (era 401 antes do fix de middleware — provou que dual-auth executa)
+- ⚠️ **Achado durante o smoke-test**: middleware do NextAuth bloqueava a request **antes** do handler executar. Resolvido em commit `0f01545d` adicionando `/api/media/` ao `EXCLUDED_PREFIXES` do middleware. Padrão segue `/api/webchat/` (auth interna no handler).
+- Caso 200 (mídia real do webchat) ainda não validável — zero linhas no JOIN `webchat_sessions × messages WHERE media_type IS NOT NULL`. Fica para validação natural quando algum visitante real mandar imagem/áudio.
 
 ## Atualização 30/04 — tabela `iptv_trials`
 
@@ -442,5 +447,18 @@ Total: **48 fixes** aplicados em ~50 arquivos. Mais o entregável adicional de d
 
 **Verificação pós-fix:**
 - `npx tsc --noEmit` limpo nos 12 arquivos modificados nesta rodada.
-- Smoke-test live de `media/[messageId]` dual-auth ainda pendente — requer deploy.
+- ✅ Smoke-test live de `media/[messageId]` dual-auth validado em prod (3 casos negativos). Detalhes na seção "Fix 30/04 — webchat mídia dual auth".
+
+## Lição final 30/04 — middleware vs handler auth
+
+Ao fazer o smoke-test live do dual-auth do `media/[messageId]`, descobrimos que o NextAuth middleware estava bloqueando a request **antes** do handler executar — meu dual-auth (`auth()` ou `session_token`) nunca rodava no caso visitante porque a request morria no middleware com 401 + cookies de NextAuth no response.
+
+**Causa**: `/api/media/` não estava em `EXCLUDED_PREFIXES` do `middleware.ts`. Resolvido em commit `0f01545d`.
+
+**Lição operacional crítica para futuras rotas dual-auth**: toda rota com auth-interna (Categoria C — token público OU header customizado) **DEVE** estar em `EXCLUDED_PREFIXES`, senão o middleware NextAuth bloqueia upstream e o handler nunca executa. O `/api/webchat/` já segue esse padrão; o `/api/media/` agora também.
+
+**Toda nova rota com fluxo de visitante anônimo (webchat, webhooks externos, magic links) precisa de checklist de 2 passos:**
+1. Implementar dual-auth no handler.
+2. Adicionar prefix em `EXCLUDED_PREFIXES` do middleware com comentário explicando o motivo.
+
 

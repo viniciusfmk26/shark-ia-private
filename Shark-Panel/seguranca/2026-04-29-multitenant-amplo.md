@@ -382,3 +382,65 @@ A contagem inicial ("2 SEM workspace_id") **subestimou novamente**. Grep cirúrg
 **Verificação pós-fix:**
 - `npx tsc --noEmit` limpo nos 5 arquivos modificados.
 
+## Atualização 30/04 — tabela `conversations`
+
+Última tabela "quente" da auditoria. Grep cirúrgico retornou 47 hits; após excluir `migrate/*`, `cron/*`, `admin/*`, `master/*`, sobraram **22 hits em ~18 arquivos**. Análise: 2 críticos + 10 defense-in-depth + 6 OK por design (incluindo arquivos já tocados em rodadas anteriores).
+
+| # | Rota | Categoria | Risco | Fix aplicado |
+|---|------|-----------|-------|--------------|
+| **🔴 CRÍTICOS (2)** | | | | |
+| 1 | `app/api/inbox/conversations/[id]/summarize/route.ts` | B | 🔴 **Cross-tenant via conversationId via LLM** — `auth()` ✅ mas SELECT conversations sem workspace; user passa conv de outro tenant, OpenAI gera summary com PII desse tenant, e `UPDATE conversations SET ai_summary` salva o summary no registro do outro tenant. **Mesmo padrão de `ai-suggestion` da rodada `payments`.** | `getWorkspaceIdSafe()` + `AND workspace_id` em SELECT (19), SELECT messages (43), UPDATE (97) |
+| 2 | `app/api/ai/vision/analyze/route.ts` | B | 🔴 **Cross-tenant via messageId via LLM** — auth ✅ mas SELECT messages, conversations e instance todos sem workspace check; OpenAI Vision analisa imagem de outro tenant; INSERT em `conversation_extracted_data` cria registro órfão (`workspace_id=user atual`, `conversation_id=outro tenant`) — **corrupção de dados cross-tenant**. | `AND workspace_id` em SELECT messages (73), conversations (117) e whatsapp_instances (125) |
+| **🟡 DEFENSE-IN-DEPTH (10)** | | | | |
+| 3 | `app/api/trial/web/route.ts:236` | C/B | 🟡 UPDATE WHERE id; conv vem de SELECT workspace-filtered (224) | `AND workspace_id = $4` no UPDATE |
+| 4 | `app/api/inbox/send/route.ts:102` | B | 🟡 UPDATE WHERE id (webchat path); conv vem de SELECT (64) | `AND workspace_id = $3` no UPDATE |
+| 5 | `app/api/inbox/conversations/[id]/archive/route.ts:44` | B | 🟡 SELECT secundário (gamificação) sem filtro; UPDATE prévio (36) já workspace-filtered | `AND workspace_id = $2` no SELECT |
+| 6 | `app/api/instances/route.ts` (4 subselects) | B | 🟡 4 subselects `c.instance_id = wi.id` em ambas variantes (com/sem allowedIds); transitivamente safe via FK mas frágil | `AND c.workspace_id = wi.workspace_id` nos 4 subselects |
+| 7 | `app/api/instances/health/route.ts` (3 hits) | B | 🟡 LEFT JOIN, JOIN aninhado e subselect — todos por `instance_id = wi.id` apenas | `AND c.workspace_id = wi.workspace_id` no LEFT JOIN, no JOIN c2 e no FROM c3 |
+| 8 | `app/api/scheduled-messages/stats/route.ts:59` | B | 🟡 SELECT conv `id = ANY($1)`; IDs de scheduled_messages workspace-filtered | `AND workspace_id = $2` no SELECT |
+| 9 | `app/api/iptv/extra-screen/route.ts:155` | B | 🟡 SELECT instance_id por id; workspaceId em scope | `AND workspace_id = $2` no SELECT |
+| 10 | `app/api/iptv/sigma-activate/route.ts:269` | B | 🟡 Mesmo padrão | `AND workspace_id = $2` no SELECT |
+| 11 | `app/api/webchat/start/route.ts:123` | C | 🟡 UPDATE WHERE id; conv vem de SELECT workspace-filtered (107) na mesma tx | `AND workspace_id = $4` no UPDATE |
+| 12 | `app/api/webchat/message/route.ts:158` | C | 🟡 UPDATE WHERE id; session.conversation_id e session.workspace_id derivados de webchat_sessions na tx | `AND workspace_id = $3` no UPDATE (usando `session.workspace_id`) |
+
+**Falsos positivos / OK por design (6 hits, 0 fix):**
+- `app/api/inbox/conversations/route.ts:66` — `whereClause` dinâmico mas seeded com `workspace_id = $1` em `conditions[0]` (linha 47).
+- `app/api/media/[messageId]/route.ts:115` — dual-auth (rodada anterior) já filtra messages por `workspace_id` + `conversation_id`; o instance_id derivado é workspace-validated.
+- `app/api/metrics/webhook-worker/route.ts:63` — `requireSuperAdmin()` já gateia (rodada whatsapp_instances).
+- `app/api/inbox/conversations/[id]/send-product/route.ts:105` — SELECT prévio já workspace-filtered (rodada whatsapp_instances).
+- `app/api/instances/[id]/route.ts:185, 196` — workspace check explícito antes (rodada whatsapp_instances).
+- `app/api/iptv/generate-and-send/route.ts:223, 597` — handler com workspaceId em scope (rodada iptv_trials).
+
+**Achados extra desta rodada:**
+
+1. **Padrão LLM-cross-tenant é recorrente**: `summarize` é a 3ª rota desta auditoria com o mesmo bug — `ai-suggestion` (rodada payments), `vision/analyze` (esta rodada) e `summarize` (esta rodada). **Toda rota que envia conversa/mídia/contato a um LLM precisa de workspace check explícito**, mesmo que pareça "interna".
+
+2. **Vision tem o agravante extra de gravar de volta**: ao contrário de `summarize` (que escreve no MESMO registro lido), `vision/analyze` faz `INSERT INTO conversation_extracted_data` com `workspace_id = user` mas `conversation_id = outro tenant`. Isso quebra integridade referencial por tenant — registros órfãos que aparecem no dashboard do user mas apontam para conversa que ele não tem acesso.
+
+3. **`webchat/*` segue o padrão correto Categoria C**: workspace derivado de `webchat_sessions` (não de `getWorkspaceIdSafe()`). Defense-in-depth foi adicionado nos UPDATEs por questão de blindagem, mas o design já estava correto.
+
+## Resumo da auditoria multitenant 30/04 (todas as rodadas)
+
+| Tabela | Críticos | Defense-in-depth | Falsos positivos / OK |
+|--------|----------|------------------|------------------------|
+| `messages` | 3 (incluindo dual-auth media) | 0 | 0 |
+| `contacts` | 4 | 3 | 2 |
+| `whatsapp_instances` | 4 | 9 | 5 |
+| `iptv_trials` | 7 | 1 | 1 |
+| `payments` | 3 | 2 | 8 |
+| `conversations` | 2 | 10 | 6 |
+| **Total** | **23 críticos** | **25 defense-in-depth** | **22 OK** |
+
+Total: **48 fixes** aplicados em ~50 arquivos. Mais o entregável adicional de dual-auth em `media/[messageId]` (resolveu regressão do webchat).
+
+**Pendências residuais consolidadas:**
+- 🔴 API key `'uniflix2026'` hardcoded em `external/*` — para `.env` (`UNIFLIX_EXTERNAL_API_KEY`).
+- `app/api/migrate/**/*` que tocam tabelas auditadas — admin one-shot.
+- `app/api/cron/*` que agregam cross-tenant — gateados por `CRON_SECRET`, intencional.
+- `iptv/link-username/route.ts` PATCH busca `iptv_trials` por `trialId` sem filtro (rodada messages original).
+- Webhooks `webhook/connection` UPDATE por `name` podem casar instances cross-workspace se houver colisão (rodada whatsapp_instances).
+
+**Verificação pós-fix:**
+- `npx tsc --noEmit` limpo nos 12 arquivos modificados nesta rodada.
+- Smoke-test live de `media/[messageId]` dual-auth ainda pendente — requer deploy.
+

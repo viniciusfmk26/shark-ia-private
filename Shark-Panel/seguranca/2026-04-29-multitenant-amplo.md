@@ -266,11 +266,45 @@ A triagem revelou que `whatsapp_instances` tem um padrão de risco distinto das 
 3. **Webhooks (categoria C)** continuam sendo o padrão correto: derivar workspace de uma entidade autenticada por token (instance, conversation, etc), nunca usar `getWorkspaceIdSafe()`.
 
 **Pendências residuais (fora do escopo desta task):**
-- `app/api/media/[messageId]` agora exige sessão — mídia do **webchat público** (visitantes anônimos) vai retornar 401. Precisa rodada separada para implementar fluxo via `webchat_sessions.session_token` (similar ao que fizemos em `webchat/messages`).
+- ~~`app/api/media/[messageId]` agora exige sessão — mídia do **webchat público** vai retornar 401.~~ **RESOLVIDO 30/04 — ver "Fix 30/04 — webchat mídia dual auth" abaixo.**
 - `app/api/migrate/**/*` que tocam `whatsapp_instances` — admin one-shot, prioridade menor.
 - Webhooks `webhook/connection` UPDATE por `name` (linha 75) podem casar instances cross-workspace se houver colisão de nome. Evolution garante unicidade global, mas vale auditar se DB tem constraint.
 
 **Verificação pós-fix:**
 - `npx tsc --noEmit` limpo nos 13 arquivos modificados.
 - Grep cirúrgico continua listando hits para esses arquivos — esperado, pois o filtro está nas mutações via `AND workspace_id`. O `grep -L` continua retornando vazio.
+
+### Fix 30/04 — webchat mídia dual auth
+
+`app/api/media/[messageId]/route.ts` ganhou autenticação dupla para fechar a regressão introduzida pelo fix anterior (visitantes anônimos do webchat recebiam 401 ao tentar carregar mídias).
+
+**Lógica implementada:**
+1. Tenta `auth()` de NextAuth primeiro.
+2. Se user autenticado → `workspaceId = await getWorkspaceIdSafe()` (fluxo antigo do dashboard, sem restrição de conversa).
+3. Se NÃO autenticado → busca token em `request.headers.get('x-session-token')` ou query param `session_token`.
+4. Se token presente → `SELECT workspace_id, conversation_id FROM webchat_sessions WHERE session_token = $1`. Se inválido → 401.
+5. Se nenhum dos dois → 401.
+
+**Restrição extra no caso visitante (decisão de segurança não explícita no briefing):**
+
+A SELECT messages adiciona `AND conversation_id = $3` quando o auth veio do webchat, restringindo o visitante à própria conversa. Sem isso, um visitante com session_token válido conseguiria buscar mídia de **qualquer outra conversa do mesmo workspace** (mensagens internas de atendentes, conversas de outros clientes), o que seria um leak intra-tenant. O fluxo do dashboard mantém o filtro só por `workspace_id` (atendente precisa ver mídia de qualquer conversa).
+
+```sql
+-- User autenticado (dashboard):
+WHERE id = $1 AND workspace_id = $2
+
+-- Visitante webchat (anônimo):
+WHERE id = $1 AND workspace_id = $2 AND conversation_id = $3
+```
+
+**Por que NÃO usar `getWorkspaceIdSafe()` no caminho do visitante:** sem session de user, ele cai no fallback `DEFAULT_WORKSPACE_ID` (variável de ambiente), o que retorna mídia de outro tenant arbitrário. Mesmo erro que cometemos quase em `webchat/messages` na primeira rodada.
+
+**Padrão consolidado para rotas com dual-auth (dashboard + webchat público):**
+- Dashboard: `auth()` + `getWorkspaceIdSafe()`, filtro `workspace_id`.
+- Webchat: `webchat_sessions.session_token`, filtro `workspace_id AND conversation_id`.
+- Header preferido: `X-Session-Token`. Query param `session_token` como fallback (compatibilidade com `<img src=...>` e `<audio src=...>` onde headers customizados não funcionam).
+
+**Verificação:**
+- `npx tsc --noEmit` limpo.
+- Smoke-test live pendente — requer deploy. Session token de teste reservado: `3aee8bed-50a4-4048-90a8-1efbeefecdc5` (workspace `00000000-0000-0000-0000-000000000002`, conversa `b574acf9-29ef-4810-ba38-4b7dffb83a29`). Conversa não tem mensagem com mídia ainda; teste 200 precisa de messageId real após deploy.
 

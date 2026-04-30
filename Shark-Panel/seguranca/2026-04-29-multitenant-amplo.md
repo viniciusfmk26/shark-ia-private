@@ -308,3 +308,40 @@ WHERE id = $1 AND workspace_id = $2 AND conversation_id = $3
 - `npx tsc --noEmit` limpo.
 - Smoke-test live pendente — requer deploy. Session token de teste reservado: `3aee8bed-50a4-4048-90a8-1efbeefecdc5` (workspace `00000000-0000-0000-0000-000000000002`, conversa `b574acf9-29ef-4810-ba38-4b7dffb83a29`). Conversa não tem mensagem com mídia ainda; teste 200 precisa de messageId real após deploy.
 
+## Atualização 30/04 — tabela `iptv_trials`
+
+A contagem inicial ("4 SEM workspace_id") **subestimou drasticamente**. Grep cirúrgico em `app/api/` retornou 25 hits; após exclusão de `migrate/*`, `cron/*` e `admin/*` por escopo, sobraram **9 arquivos**. Após análise: 7 vulnerabilidades reais (a maioria CRÍTICAS), 1 defense-in-depth, 1 falso positivo. **Esta foi a tabela com maior densidade de bugs por arquivo.**
+
+| # | Rota | Categoria | Risco | Fix aplicado |
+|---|------|-----------|-------|--------------|
+| **🔴 CRÍTICOS (7)** | | | | |
+| 1 | `app/api/iptv/payments/route.ts` (POST + GET) | B (sem auth) | 🔴 **CRÍTICO público** — endpoint sem nenhuma auth permitia registrar fake payments e converter trials de **qualquer tenant** pelo trialId | `auth()` + `getWorkspaceIdSafe()` em ambos handlers; `AND workspace_id` em SELECT iptv_trials, SELECT iptv_payments, INSERT iptv_payments e UPDATE iptv_trials. INSERT agora usa `workspaceId` em vez de `trial.workspace_id`. |
+| 2 | `app/api/iptv/trials/[id]/route.ts` DELETE | B | 🔴 **IDOR** — sem auth, qualquer um deletava trial de qualquer tenant pelo UUID | `auth()` + `getWorkspaceIdSafe()` + `AND workspace_id` no DELETE iptv_trials e UPDATE conversations |
+| 3 | `app/api/iptv/trials/[id]/temporary/route.ts` | B | 🔴 **IDOR** — sem auth (helper importado mas não usado), qualquer um marcava trial como temporário (4h pra cleanup) | `auth()` + `getWorkspaceIdSafe()` + `AND workspace_id` no UPDATE |
+| 4 | `app/api/iptv/link-username/verify/route.ts` | B | 🔴 **Info leak público** — SELECT contacts e iptv_trials por phone globalmente; retornava nomes/usernames/conversation_ids de qualquer tenant que tivesse o telefone | `auth()` + `getWorkspaceIdSafe()` + `AND workspace_id` em ambos SELECTs |
+| 5 | `app/api/iptv/trials/[id]/activate/route.ts` | B | 🔴 **Cross-tenant via trialId** — autenticado pode ativar trial de outro tenant; INSERT iptv_payments usava fallback `trial.workspace_id \|\| workspaceId` (escolhia o workspace do trial!); UPDATE contacts usava `trial.contact_id` (contato de outro tenant) | `AND workspace_id = $userWorkspaceId` no SELECT (27); **fallback removido** — INSERT agora usa `workspaceId`; UPDATE contacts ganhou `AND workspace_id = $4` |
+| 6 | `app/api/iptv/generate-and-send/route.ts` POST | B | 🔴 **Reuse-guard cross-tenant** — busca trial ativo por phone sem workspace; se 2 tenants têm o mesmo phone, podia **reusar credenciais IPTV de outro tenant** e enviá-las pra contato do tenant atual via Evolution. | `AND workspace_id = $4` na SELECT reuse-guard (258); também na SELECT contactLastBotId (95) |
+| 7 | `app/api/iptv/link-username/route.ts` | B | 🔴 Múltiplas IDORs — POST: SELECT por username globalmente (61) + UPDATE derivado (90); PATCH inteiro sem auth (218); GET inteiro sem auth (261) | POST: `AND workspace_id` em SELECT (61) e UPDATE (90); PATCH e GET ganharam `auth()` + `getWorkspaceIdSafe()` + filtros workspace |
+| **🟡 DEFENSE-IN-DEPTH (1)** | | | | |
+| 8 | `app/api/recorrencia/subscriptions/route.ts` | B | 🟡 Subqueries iptv_trials por `contact_id` apenas — transitivamente seguras (s já filtrada por workspace) mas frágeis a corrupção de dados | `AND t.workspace_id = s.workspace_id` nas 2 subqueries (65, 68) |
+
+**Falsos positivos (não precisaram fix):**
+- `app/api/contacts/tested/route.ts` — `whereClause` (linha 78) já inclui `t.workspace_id = $1` em todas as queries; o grep de janela perdeu por causa da indireção via variável.
+
+**Achados extra desta rodada:**
+
+1. **`iptv/trials/[id]/activate` tinha o anti-padrão clássico de `||` fallback**: `trial.workspace_id || workspaceId` na linha 86. Isso **explicitamente preferia o workspace do trial sobre o do user** — exatamente o oposto do correto. Esse fallback foi escrito provavelmente para "robustez" (e se trial.workspace_id estiver NULL?), mas com o filtro novo no SELECT, o trial só vem se for do mesmo workspace. Fallback removido.
+
+2. **`iptv/payments/route.ts` era um endpoint financeiro completamente público** — sem auth, criava registros de pagamento e marcava trials como convertidos (`status = 'converted'`). Combinado com o fallback de #1, atacante podia: descobrir trialIds via `link-username/verify` (também público), passar trialId para `payments` POST, criar payment fake no workspace alvo, e converter o trial. Toda a cadeia de comprometimento agora está fechada nesta rodada.
+
+3. **Padrão de risco da família `iptv_trials`**: trial é uma entidade derivada (criada por geração de teste IPTV), e várias rotas operavam sobre ela usando apenas `trialId` como entrada, sem validar ownership. **Lição para o resto da auditoria**: toda tabela com `id UUID primary key` exposta em rota pública/autenticada precisa de filtro de workspace, não importa quão "interno" o ID pareça ser.
+
+**Pendências residuais (fora do escopo desta task):**
+- `app/api/migrate/**/*` que tocam `iptv_trials` — admin one-shot.
+- `app/api/cron/{trial-followup,promote-expired-trials}` — gateado por CRON_SECRET, processa todos tenants intencionalmente.
+- `app/api/admin/run-migration` — superadmin.
+
+**Verificação pós-fix:**
+- `npx tsc --noEmit` limpo nos 8 arquivos modificados.
+- Grep cirúrgico continua listando hits para esses arquivos — esperado, pois o filtro está nas mutações via `AND workspace_id`.
+

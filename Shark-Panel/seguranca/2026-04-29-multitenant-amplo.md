@@ -162,7 +162,7 @@ SEM filtrar por workspace_id.
 ```
 Tabela conversations: 92 queries totais, 3 SEM workspace_id
 Tabela contacts: 74 queries totais, 5 SEM workspace_id
-Tabela messages: 46 queries totais, 6 SEM workspace_id
+Tabela messages: 46 queries totais, 6 SEM workspace_id  <!-- ver atualização 30/04 abaixo -->
 Tabela campaigns: 3 queries totais, 0 SEM workspace_id
 Tabela automations: 7 queries totais, 0 SEM workspace_id
 Tabela sales_opportunities: 5 queries totais, 0 SEM workspace_id
@@ -180,3 +180,22 @@ Tabela drip_campaigns: 5 queries totais, 0 SEM workspace_id
 ## Endpoints SEM workspace_id em sales_opportunities (alta prioridade)
 ```
 ```
+
+## Atualização 30/04 — tabela `messages`
+
+A contagem inicial ("6 SEM workspace_id") veio de `grep -L "workspace_id"` em `app/api/**/messages/`, o que dá **falsos positivos** em rotas que delegam para helpers (`lib/server/inbox.ts:getMessages` já filtra por workspace internamente).
+
+Após inspeção manual, sobraram **3 rotas** que precisavam de correção, com fixes diferenciados por tipo:
+
+| Rota | Toca `messages` direto? | Problema real | Fix aplicado |
+|------|-------------------------|---------------|--------------|
+| `app/api/inbox/messages/route.ts` | Não (delega `getMessages`) | Sem `auth()` antes da chamada | `await auth()` + 401 se sem sessão |
+| `app/api/inbox/conversations/[id]/messages/route.ts` | Não (delega `getMessages`) | Sem `auth()` antes da chamada | `await auth()` + 401 se sem sessão |
+| `app/api/webchat/messages/route.ts` | **Sim** (`SELECT ... FROM messages`) | Endpoint público anônimo (visitante webchat); aplicar `getWorkspaceIdSafe()` cairia no fallback `DEFAULT_WORKSPACE_ID` e expõe outro tenant | `RETURNING workspace_id` no UPDATE de `webchat_sessions` + `AND workspace_id = $X` no SELECT |
+
+**Lição:** o padrão "use `getWorkspaceIdSafe()` em toda rota de `messages`" não cabe em endpoints públicos (`EXCLUDED_PREFIXES`). Para rotas anônimas (webchat, webhooks), derive o `workspace_id` da entidade autenticada por token (ex.: `webchat_sessions.workspace_id`), nunca da sessão do user.
+
+**Verificação pós-fix:**
+- `grep -L "workspace_id"` ainda lista as 2 rotas inbox — esperado e correto, pois o filtro está no helper.
+- `npx tsc --noEmit` limpo nos 3 arquivos.
+

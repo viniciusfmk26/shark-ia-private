@@ -345,3 +345,40 @@ A contagem inicial ("4 SEM workspace_id") **subestimou drasticamente**. Grep cir
 - `npx tsc --noEmit` limpo nos 8 arquivos modificados.
 - Grep cirúrgico continua listando hits para esses arquivos — esperado, pois o filtro está nas mutações via `AND workspace_id`.
 
+## Atualização 30/04 — tabela `payments`
+
+A contagem inicial ("2 SEM workspace_id") **subestimou novamente**. Grep cirúrgico em `app/api/` retornou 33 hits. Após excluir `migrate/*`, `cron/*`, `admin/*` por escopo, sobraram 18 hits em 13 arquivos. Após análise: 8 OK por design, 3 vulnerabilidades reais, 2 defense-in-depth.
+
+| # | Rota | Categoria | Risco | Fix aplicado |
+|---|------|-----------|-------|--------------|
+| **🔴 CRÍTICOS (3)** | | | | |
+| 1 | `app/api/inbox/conversations/[id]/ai-suggestion/route.ts` | B | 🔴 **Cross-tenant via `conversationId`** — `auth()` ✅ mas SELECT conversations sem workspace check; user autenticado podia passar conversationId de outro tenant e ter o **prompt da OpenAI alimentado com PII desse tenant** (nome, plano, contagem de pagamentos) | `getWorkspaceIdSafe()` + `AND workspace_id = $userWorkspaceId` em SELECT conversations (19); defense-in-depth nos SELECTs derivados de contacts (43), payments (61) e messages (72) |
+| 2 | `app/api/external/metricas/route.ts` | B/C | 🔴 **Cross-tenant** — endpoint protegido por API key hardcoded; agregava vendas e faturamento de **todos os tenants** (linhas 16-26 e 28-34), expondo MRR/dados financeiros da plataforma inteira a quem tivesse a API key | `const uniflixWorkspaceId = process.env.UNIFLIX_WORKSPACE_ID ?? '00000000-0000-0000-0000-000000000002'`; `AND p.workspace_id = $1` em ambos SELECTs. Refatorou também a 3ª query (que já tinha o UUID hardcoded inline) para usar a mesma variável. |
+| 3 | `app/api/external/pedidos/route.ts` | B/C | 🔴 **Cross-tenant** — listava pedidos (`payments` + `checkout_orders`) de **todos os tenants** via API key. Vazamento de PII (nome, telefone, valor, UTMs) de todos os clientes da plataforma | Mesma variável `uniflixWorkspaceId`; `WHERE p.workspace_id = $1` no SELECT payments; `AND co.workspace_id = $1` no SELECT checkout_orders. Reposicionou parâmetros do CTE (LIMIT/OFFSET passaram de $1/$2 para $2/$3) |
+| **🟡 DEFENSE-IN-DEPTH (2)** | | | | |
+| 4 | `app/api/recorrencia/sync/route.ts` | B | 🟡 2 subqueries `payments` por `contact_id` apenas; `c` (contacts) já workspace-filtered no CTE candidatos, transitivamente seguro | `AND p.workspace_id = $1` nas 2 subqueries scalares dentro do CTE candidatos (28-29, 32-33) |
+| 5 | `app/api/iptv/trials/analytics/route.ts` | B | 🟡 2 subqueries `EXISTS payments` por `contact_id`; `tr` já workspace-filtered no CTE | `AND p.workspace_id = $1` nas 2 subqueries EXISTS no funil (131, 135) |
+
+**Falsos positivos / OK por design (8 arquivos sem fix):**
+
+- **`master/financeiro/route.ts`** + 4 arquivos `master/pessoas/*` — todos têm `isSuperAdmin()` no topo (return 403 se falhar). Cross-tenant intencional para painel master. Meu grep inicial falhou ao detectar `isSuperAdmin()` por bug no escape (`auth(\|...`).
+- **`payments/webhook/route.ts:137`** — SELECT por `external_id` para idempotência (transação processada uma vez globalmente). Adicionar workspace_id quebraria a idempotência.
+- **`payments/amplopay-webhook/route.ts`** (6 hits) — mesmo padrão: idempotência (1003) e cancellation/refund por `external_id` (transaction ID AmploPay, globalmente único). Workspace já vem derivado de `checkout_orders` upstream.
+- **`checkout/status/[id]/route.ts`** — endpoint público que retorna apenas `{status: 'PAID'|'UNKNOWN'}`. Sem PII, é confirmação de pagamento equivalente ao próprio webhook.
+
+**Achados extra desta rodada:**
+
+1. **`external/*` revelou um padrão de risco específico de "API key hardcoded apontando para tenant fixo"**. O nome `'uniflix2026'` da API key sugeria que o endpoint deveria ser Uniflix-only, mas o código não impunha isso — leakava todos os tenants. **Lição**: quando uma API key tem nome/contexto que sugere ownership de um tenant específico, o filtro de workspace deve ser explícito no código, não inferido pelo cliente.
+
+2. **`ai-suggestion` é o exemplo perfeito de leak via prompt LLM**: dados cross-tenant entravam no prompt da OpenAI, que então respondia ao atendente do tenant atual com sugestões baseadas em informações de outro tenant. Vazamento sutil porque a "vítima" não percebe — recebe uma sugestão estranha mas não rastreável à origem cross-tenant. **Toda rota que envia dados a um LLM precisa de filtro de tenancy ainda mais rigoroso, porque a saída do LLM frequentemente vaza informações da entrada de forma não-óbvia.**
+
+3. **Padrão consolidado para idempotência de webhook**: SELECT/UPDATE por identificador externo único (transaction ID, evento ID, etc) **NÃO** deve incluir workspace_id, pois quebraria idempotência. Workspace é derivado uma vez ao processar o evento e usado nas mutações de negócio (em `contacts`, `tags`, etc), não nas guardas de idempotência.
+
+**Pendências residuais (fora do escopo desta task):**
+- **API key `'uniflix2026'` hardcoded** em `external/metricas` e `external/pedidos`. Deve ir para `.env` (`UNIFLIX_EXTERNAL_API_KEY` ou similar). É um problema de gestão de credenciais separado — fora de escopo da auditoria de tenancy mas crítico por si só.
+- `app/api/migrate/**/*` que tocam `payments` — admin one-shot.
+- `app/api/cron/{abandoned-cart,drip-campaigns}` — gateado por `CRON_SECRET`, processa todos tenants intencionalmente.
+
+**Verificação pós-fix:**
+- `npx tsc --noEmit` limpo nos 5 arquivos modificados.
+

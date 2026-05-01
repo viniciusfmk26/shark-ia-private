@@ -1,0 +1,5 @@
+# Catálogo de sessões Zapflix-Tech
+
+## 2026-05-01 (sexta)
+- sessoes/2026-05-01-zapflix-manha-tarde-parte1.md (a documentar) — 22 commits do dia, inbox CRM open/pending/closed, fix unread fantasmas, ordenação WhatsApp-style
+- sessoes/2026-05-01-zapflix-tarde-noite-parte2.md — Lazy load + AbortController + fix filtro Não lidas + bugs IPTV (linked com '+', pagantes sem username)

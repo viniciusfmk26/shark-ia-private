@@ -817,3 +817,15 @@ Severidade média porque já é protegido por `ROTATION_API_KEY` (serviço exter
 
 **Fix planejado:** [referência ao FIXES.md ou "a definir"]
 ```
+
+---
+
+## Bug Layout Responsivo — 2026-05-02 ⏳ PENDENTE
+
+**Estado:** ⏳ Pendente (prioridade média)
+**Impacto:** 🟡 Vários clientes/revendedores reclamam
+**Telas afetadas:** Inbox (conversa + painel lateral), Sidebar/menu lateral
+**Sintoma:** Layout fixo em pixels não adapta pra telas 13-15 pol (1280x800, 1366x768). Elementos ficam cortados sem scroll.
+**Abordagem escolhida:** Refatorar Inbox + Sidebar com layout responsivo de verdade (Tailwind breakpoints)
+**Estimativa:** 1-2 dias de Claude Code
+**Decisão:** Fazer em sessão própria, após primeira venda do Zapflix

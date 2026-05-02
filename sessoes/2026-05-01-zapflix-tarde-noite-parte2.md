@@ -220,3 +220,98 @@ app/api/iptv/link-username/route.ts
 ---
 
 **Total da sessão:** 5 commits, 5 bugs resolvidos, ~6 horas de trabalho.
+
+---
+
+# Adendo — Continuação tarde/noite (3 commits adicionais)
+
+Continuação direta da mesma sessão; mais 3 commits após o `6312fca5`. Total acumulado: **8 commits**.
+
+| Hash | Descrição | Arquivos |
+|---|---|---|
+| `7a7ed1ea` | fix(inbox): badge Não lidas + alerts respeitam member_instance_permissions | `app/api/inbox/alerts/route.ts`, `app/api/inbox/conversations/route.ts` |
+| `06045860` | fix(inbox): paginação por offset + dedupe defensivo — fim das duplicatas no scroll | `app/api/inbox/conversations/route.ts`, `components/inbox/conversation-list.tsx`, `lib/server/inbox.ts` |
+| `93bf0125` | fix(inbox): suprimir LoadingState em transição de filtro; usar opacity durante fetch | `components/inbox/conversation-list.tsx` |
+
+---
+
+## ETAPA 4 — Permissões por instância no badge / alerts (7a7ed1ea)
+
+### Bug
+Badge de "Não lidas" e endpoint de alerts retornavam contagens agregadas do workspace inteiro, ignorando `member_instance_permissions`. Operador com acesso a 1 instância via duas o número total de não-lidas como se tivesse acesso a tudo.
+
+### Fix
+- `/api/inbox/alerts`: filtro por instâncias permitidas do membro (mesma lógica já usada em `/conversations`).
+- `/api/inbox/conversations`: contagem de unread também respeita o filtro de permissão.
+
+Resultado: badge consistente com a lista. Quem só vê instância X só conta unreads de X.
+
+---
+
+## ETAPA 5 — Paginação offset + dedupe (06045860)
+
+### Bug
+No scroll infinito da lista de conversas, ao chegar no fim aparecia a "primeira página" duplicada (1ª, 2ª, 1ª, 2ª…). Sintoma cumulativo: quanto mais o usuário rolava, mais duplicatas.
+
+### Causa-raiz
+Cursor server-side estava inconsistente com filtros (em particular `onlyUnread` e `instanceIds`). A próxima página retornava registros já vistos.
+
+### Fix
+- Backend (`lib/server/inbox.ts`, `/api/inbox/conversations/route.ts`): paginação por `offset` em vez de cursor opaco. Determinístico para qualquer combinação de filtros.
+- Frontend (`conversation-list.tsx`): dedupe defensivo no merge — `const seen = new Set(prev.map(c=>c.id)); fresh = safeData.filter(c=>!seen.has(c.id));`.
+
+Defesa em profundidade: backend não duplica; frontend ignora duplicata se vier.
+
+---
+
+## ETAPA 6 — LoadingState flash em troca de filtro (93bf0125)
+
+### Sintoma reportado pelo usuário
+"Sensação de reload de página" ao trocar filtro. Tela inteira pisca ~200–500ms.
+
+### Causa
+`fetchConversations(reset=true)` zerava `allConversations` e setava `loading=true`. O guard `if (loading && conversations.length === 0)` retornava `<LoadingState />` em tela cheia. A lista anterior sumia visualmente antes do novo fetch chegar.
+
+### Fix
+Estado `isFilterTransition` (boolean):
+1. Setado `true` antes de cada troca de filtro (search, instance, status, tag).
+2. Render do `LoadingState` agora exige `loading && !isFilterTransition && conversations.length === 0` — só aparece na carga inicial.
+3. `useEffect` reseta `isFilterTransition=false` quando `loading` volta a `false`.
+4. Durante transição: lista existente recebe `opacity-50 pointer-events-none` + spinner pequeno absoluto centralizado. Lista NÃO some — esmaece.
+
+Resultado: troca de filtro vira interação fluida; nenhum frame sem conteúdo.
+
+---
+
+## Validações SQL pós-deploy (executadas direto no banco)
+
+| Query | Resultado | Status |
+|---|---|---|
+| **Q1** — tags pagantes (Adriano, José, Jeison, Luciano) | 0 linhas | ⚠️ Pendência real |
+| **Q2** — badge Denise (`unread_count`) | `Denise Mendes / 554884611073 / unread_count=0` | ✅ OK |
+| **Q3** — duplicatas em `conversations` | 0 grupos (literal por `id` e variante por `(workspace_id, instance_id, contact_phone)`) | ✅ OK — fix da Etapa 5 confirmado |
+
+### Pendência identificada na Q1
+- 169 conversas casam com os nomes alvo no workspace Uniflix.
+- **Nenhuma** delas tem entrada em `conversation_tags` nem em `conversations.tags[]`.
+- Sanity check: `conversation_tags` tem só **3 linhas no banco inteiro**; `conversations` com `tags[]` não-vazio no workspace = **2** (e nenhuma casa com os nomes).
+- **Conclusão:** o sistema de tags não está sendo populado para pagantes. A vinculação Amplopay → tag não está rodando, ou nunca foi implementada. Investigar webhook AmploPay / job de sincronização de tags em sessão futura.
+
+### Observação Q2
+`messages.read_at` não existe no schema — a fonte de verdade do badge é `conversations.unread_count`. Query original assumia coluna inexistente; ajustada para o campo correto.
+
+---
+
+## Pendências adicionadas após adendo
+
+- **[NOVO] Auto-tag de pagante: feature não implementada.**
+  Diagnóstico via SQL confirmou:
+  - 6 tags cadastradas no workspace (Aguardando, Novo, Resolvido, Trial Web, Urgente, VIP) — nenhuma comercial/IPTV.
+  - `conversation_tags`: apenas 2 vínculos no workspace inteiro.
+  - Zero triggers ou jobs conectando `subscriptions` → tags.
+  - Amplopay retorna 1367 pagantes via `/link-username` (commit 6312fca5), mas esse dado não é convertido em tag automática.
+  - **Próxima sessão:** criar tag "Pagante Ativo" + job/cron que leia `subscriptions WHERE status='active'` e popule `conversation_tags`. Isso desbloqueia filtros e funis baseados em status IPTV.
+
+---
+
+**Total acumulado da sessão:** 8 commits, 6 bugs resolvidos + 1 pendência identificada via SQL.

@@ -1,3 +1,31 @@
+## fix-referer-null — 2026-05-02
+
+**Bug:** [[bugs#bug-400-checkout-browser-2026-05-02]]
+**Sessão:** [[SESSAO_2026-05-02]]
+**Commit:** `0fbe0722`
+**Arquivo:** `app/api/lowticket/create-pix/route.ts:17`
+
+### Mudança
+```diff
+ const optionalString = z
+   .string()
++  .nullable()
+   .optional()
+   .transform((v) => (v && v.trim() !== '' ? v.trim() : undefined));
+```
+
+### Impacto
+- Resolve 400 em todas as requisições do CheckoutForm com `attribution.referer = null`
+- Protege os 12 campos do `AttributionSchema`
+
+### Validação
+- ✅ tsc --noEmit: exit 0
+- ✅ vitest: 14/14 passed (2 testes novos cobrindo null em attribution)
+- ✅ Smoke curl com body REAL do browser: HTTP 200 + PIX
+- ✅ Browser confirmado funcionando (modal "Pague com PIX" abriu)
+
+---
+
 # FIXES.md — Plano de Execução
 
 > Plano priorizado com prompts prontos para o Claude Code executar.

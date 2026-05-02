@@ -333,3 +333,63 @@ node -e "const bcrypt = require('bcryptjs'); bcrypt.hash('NOVA_SENHA', 12).then(
 | MinIO Console | minio.zapflix.shop |
 | PostgREST | wp-zapflix-postgrest.jomik8.easypanel.host |
 | Monitor (quando ativo) | porta 5000 interna |
+
+---
+
+## deploy-manual-zapflix-tech
+
+**Quando usar:** SEMPRE. Auto-deploy EasyPanel QUEBRADO desde 2026-04-27.
+
+**NÃO TENTAR:**
+- ❌ Reautenticar GitHub no painel (não resolve)
+- ❌ POST `/api/deploy/<token>` (retorna 200 mas não builda)
+- ❌ Restart do container easypanel (testado, não resolve)
+
+**Causa:** EasyPanel chama GitHub SEM Authorization header — bug interno deles.
+
+### Procedimento (~10 min)
+```bash
+cd /root/Zapflix-Tech
+docker build -t zapflix-tech:latest -f Dockerfile .
+docker service update --image zapflix-tech:latest --force wp_zapflix-web
+curl -is https://app.sharkpanel.com.br/api/health | head -3
+docker ps --filter name=wp_zapflix-web --format "{{.Names}} | {{.Status}}"
+rsync -a --delete --exclude='.next' --exclude='node_modules' --exclude='.git' \
+  /root/Zapflix-Tech/ /etc/easypanel/projects/wp/zapflix/code/
+git push origin main
+```
+
+### Em caso de falha
+```bash
+docker service rollback wp_zapflix-web
+```
+
+---
+
+## investigar-webhook-amplopay
+
+**Quando usar:** PIX pago mas modal trava em "Aguardando confirmação".
+
+```bash
+WEB=$(docker ps -q -f name=wp_zapflix-web | head -1)
+docker logs $WEB --since 10m 2>&1 | grep -iE "lowticket-webhook|TRANSACTION_PAID|unauthorized" | tail -20
+docker exec $(docker ps -q -f name=wp_zapflix-web | head -1) printenv | grep AMPLOPAY_WEBHOOK_TOKEN
+# Esperado: i8rz0ljm
+```
+
+---
+
+## investigar-whatsapp-nao-disparou
+
+**Quando usar:** status='paid' mas WhatsApp não chegou.
+
+```bash
+CONTAINER_DB=$(docker ps -q -f name=wp_zapflix-db.1)
+PASSWORD=$(docker exec $CONTAINER_DB printenv POSTGRES_PASSWORD)
+PGPASSWORD="$PASSWORD" psql -h localhost -p 5433 -U zapflix -d zapflix -c "
+SELECT name, status, payment_confirmation_enabled
+FROM whatsapp_instances 
+WHERE workspace_id = '00000000-0000-0000-0000-000000000002'
+ORDER BY payment_confirmation_enabled DESC;"
+# Precisa de pelo menos 1 instância: status='connected' + payment_confirmation_enabled=true
+```

@@ -1,3 +1,37 @@
+## Bug 400 Checkout Browser — 2026-05-02 ✅ RESOLVIDO
+
+**Estado:** ✅ Fix em produção (commit `0fbe0722`)
+**Severidade:** 🔴 BLOQUEADOR (impedia qualquer compra via browser)
+**Sessão:** [[SESSAO_2026-05-02]]
+**Fix:** [[FIXES#fix-referer-null]]
+
+### Sintoma
+- `curl` direto pra `/api/lowticket/create-pix`: ✅ HTTP 200
+- Mesmo endpoint via browser (CheckoutForm): ❌ HTTP 400 sempre
+- Mensagem ao usuário: "Não foi possível gerar o PIX. Tente novamente."
+
+### Causa raiz
+- `CheckoutForm.tsx:268` envia `referer: document.referrer || null`
+- Quando usuário entra direto: `document.referrer === ""`, fallback vira `null`
+- Zod `optionalString = z.string().optional()` aceita `string | undefined`, NÃO `null`
+- Curl funcionava porque body era limpo (sem `attribution`)
+
+### Fix
+```typescript
+// ANTES
+const optionalString = z.string().optional().transform(...)
+// DEPOIS
+const optionalString = z.string().nullable().optional().transform(...)
+```
+Protege os 12 campos do `AttributionSchema` de uma vez.
+
+### Lições
+1. Zod `.string().optional()` NÃO aceita null. Padrão: `.nullable().optional()`
+2. Servidor é fronteira de validação — aceitar `null ≡ undefined ≡ ""`
+3. Logs de body em prod = risco LGPD
+
+---
+
 # bugs.md — Bugs e Problemas Conhecidos
 
 > Registro de bugs conhecidos que ainda não foram corrigidos.

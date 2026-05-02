@@ -51,3 +51,35 @@
 | ID | Resolvido em | Como |
 |----|-------------|------|
 | (nenhum ainda — arquivo criado em 28/04/2026) | | |
+
+---
+
+## F4.5-débito-1 — bump_data (singular) gravando NULL 🟢
+
+**Área:** Schema DB / lowticket_orders
+**Sessão:** [[SESSAO_2026-05-02]]
+
+Coluna `bump_data` deprecada. `bump_taken` (jsonb array) é fonte da verdade.
+Gravar NULL em todos os novos orders. Drop column em migration futura.
+
+---
+
+## F4.5-débito-2 — Convenção schema inconsistente: `active` vs `is_active` 🟢
+
+**Área:** Schema DB
+**Sessão:** [[SESSAO_2026-05-02]]
+
+- `lowticket_products` usa `active`
+- `lowticket_checkouts` usa `is_active`
+- Não refatorar agora. Nova tabela: usar SEMPRE `is_active`.
+
+---
+
+## F4-débito-3 — Auto-deploy EasyPanel webhook QUEBRADO 🔴 KNOWN
+
+**Área:** Deploy / EasyPanel
+**Sessão:** [[SESSAO_2026-04-28]]
+
+EasyPanel chama GitHub sem Authorization header. Bug interno.
+Workaround documentado em [[RUNBOOK#deploy-manual-zapflix-tech]].
+NÃO investigar de novo — já foi investigado via tcpdump.

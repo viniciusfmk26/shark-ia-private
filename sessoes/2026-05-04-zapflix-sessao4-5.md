@@ -129,3 +129,50 @@
 - Reorganização do Settings (Geral/Mensagens/Chat)
 - Amplopay por workspace
 - Custom domain (tabela já existe)
+
+## Sessão 6 — Parte 2 (2026-05-04 noite)
+
+### Commits
+
+| Commit | Feature |
+|---|---|
+| 5e533fad | fix(meu-setup): carregar business_type corretamente |
+| 754e3546 | feat(master): descrições módulos + vencimento trials + info plano |
+| 52bf5e03 | feat(master): toggle automações + copiar templates Shark Panel |
+| 21f287ad | fix(master): toggle módulos permanentes salvando corretamente |
+| + excluir | feat(master): excluir workspace com confirmação dupla |
+
+### Fixes críticos
+- Nicho não carregava ao abrir meu-setup (campo 'type' vs 'business_type')
+- Toggle de módulos permanentes não salvava (feature inexistente no banco)
+- Features desabilitadas por padrão quando workspace sem configuração
+- /api/settings agora lê workspace_features e mapeia para modules
+
+### Melhorias painel master
+- Card "Plano & Vencimento" na Visão Geral (plano, vencimento, nicho, último acesso)
+- Descrições de cada módulo em Conceder Trial e Módulos Permanentes
+- Toggle ativo/inativo de automações direto do master
+- Copiar templates do Shark Panel para workspace do cliente
+- Botão excluir workspace com confirmação dupla (digitar nome)
+- Proteção: Shark Panel e workspace teste não podem ser excluídos
+
+### Arquitetura feature gating (corrigida)
+- /api/settings lê workspace_features e mapeia:
+  iptv → iptv_trials + iptv_apps
+  campaigns → campaigns
+  ai_responses → ai_agents
+  checkout → billing
+  funnels → guided_funnel
+- use-modules: features === true (não !== false)
+- Fallback: tudo false quando sem configuração
+
+### Backlog sessão 7
+- Editor visual de checkout com preview iframe
+- Página de obrigado customizável
+- Onboarding guiado (ÚLTIMO antes do beta)
+- Reorganização Settings (Geral/Mensagens/Chat)
+- Amplopay por workspace
+- Custom domain
+- Portal de suporte público
+- Notificação trial vencendo
+- Página de planos pública

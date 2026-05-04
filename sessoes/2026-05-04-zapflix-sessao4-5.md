@@ -71,3 +71,61 @@
 - Templates IPTV apareciam para todos os nichos → corrigido
 - Seções em inglês (Segurança, Webhooks) → traduzidas
 - Estúdio IA aparecia sem feature gate → corrigido
+
+## Sessão 6 — Continuação (2026-05-04 tarde)
+
+### Commits
+
+| Commit | Feature |
+|---|---|
+| e9a34aa0 | Créditos IA: 100 grátis + débito + tela de compra |
+| d7366f1d | Tag automática em automation triggers |
+| 7b4b9886 | Seleção em massa de contatos |
+| 8a32fd6c | Filtro sem tag + CSV com tag + campanha da lista + toggle IA |
+| c1737f26 | Campos endereço ocultos para nichos sem entrega física (pedidos) |
+| b2f80ce4 | Fix: nicho salvo corretamente ao trocar em meu-setup |
+| 52bb6dee | Limite de membros por plano + compra de vagas R$15 |
+| c101eb70 | Fix: endereço oculto no inbox para nichos sem entrega |
+| 55c1aa3e | Fix: features desabilitadas por padrão |
+| 48336792 | Fix: modules baseado em workspace_features |
+
+### Arquitetura
+
+**Créditos IA:**
+- lib/server/ai-credits.ts: getAiBalance, hasAiCredits, debitAiCredits
+- 100 créditos grátis no signup
+- use_shared_key toggle em ai_provider_settings
+- Pacotes: 500/1000/5000 créditos = R$29/49/149
+
+**Feature gating corrigido:**
+- /api/settings agora lê workspace_features e mapeia para modules
+- iptv → iptv_trials + iptv_apps
+- campaigns → campaigns
+- ai_responses → ai_agents
+- checkout → billing
+- funnels → guided_funnel
+- use-modules hook: features === true (não !== false)
+
+**Limite de membros:**
+- Free: 1 / Starter: 3 / Pro: 10 / Enterprise: 999
+- Compra de vaga extra: R$15 via PIX (Amplopay)
+- Bloqueia convite quando limite atingido
+
+**Tags automáticas:**
+- Trigger type 'tag' no worker → aplica tag ao contato sem job
+- UI: select de tags no editor de gatilhos
+
+**Contatos:**
+- Seleção em massa com checkbox
+- Bulk: aplicar tag, remover tag, deletar, criar campanha
+- Filtro "sem tag"
+- CSV com coluna tag
+- Campanha direto da lista filtrada
+
+### Backlog sessão 7
+- Editor visual de checkout com preview iframe
+- Página de obrigado customizável
+- Onboarding guiado (ÚLTIMO antes do beta)
+- Reorganização do Settings (Geral/Mensagens/Chat)
+- Amplopay por workspace
+- Custom domain (tabela já existe)

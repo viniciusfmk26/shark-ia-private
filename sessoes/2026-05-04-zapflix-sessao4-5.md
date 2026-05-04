@@ -176,3 +176,34 @@
 - Portal de suporte público
 - Notificação trial vencendo
 - Página de planos pública
+
+## Sessão 6 — Parte 3 (2026-05-04 noite)
+
+### Commits
+
+| Commit | Feature |
+|---|---|
+| 2bfafff6 | fix(settings): module_trials no cálculo de modules |
+| c98d8c20 | fix(sidebar): Automações não exige módulo campaigns |
+| bc1a35b1 | fix(automations): esconder Gerar com IA sem feature ai_responses |
+| a3d15d0f | feat(automations): CRUD de pastas de áudios dinâmicas |
+
+### Fixes feature gating
+- module_trials agora incluídos em /api/settings → trial de Funis libera Automações
+- Automações no sidebar não exige mais module 'campaigns'
+- Gerar com IA escondido sem feature ai_responses
+
+### CRUD de pastas de áudios
+- Tabela automation_folders criada
+- API CRUD: GET/POST/PATCH/DELETE /api/automations/folders
+- 90 pastas padrão semeadas (6 por workspace)
+- UI: pastas dinâmicas + botão Nova pasta
+- Hover: lápis e lixo por pasta
+- Modal criar/editar com seletor de emoji
+- Todos os selects de pasta usam dados do banco
+
+### Backlog
+- Mesmo CRUD de pastas para Mídias e Documentos
+- Onboarding guiado (ÚLTIMO antes do beta)
+- Editor visual de checkout
+- Portal de suporte público

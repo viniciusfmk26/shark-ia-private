@@ -59,3 +59,15 @@
 - Toggle "Canal de suporte" por instância WA
 - Ticket automático só em instâncias marcadas como suporte
 - model_trials: 1 trial por módulo, upsert ao renovar
+
+## Commits adicionais (pós-sessão)
+
+| Commit | Feature |
+|---|---|
+| 33b22d20 | fix(sidebar): remover exceção ai_studio sempre visível |
+| 5b4f149e | fix(settings): gate IPTV no payments + traduzir Segurança e Webhooks |
+
+## Problemas identificados em /settings
+- Templates IPTV apareciam para todos os nichos → corrigido
+- Seções em inglês (Segurança, Webhooks) → traduzidas
+- Estúdio IA aparecia sem feature gate → corrigido

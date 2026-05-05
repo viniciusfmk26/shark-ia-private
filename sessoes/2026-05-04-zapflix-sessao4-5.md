@@ -244,3 +244,24 @@
 - Editor visual de checkout
 - Portal de suporte público
 - Notificação trial vencendo
+
+## Sessão 7 — Parte 2 (2026-05-04 noite)
+
+### Commits adicionais
+
+| Commit | Feature |
+|---|---|
+| 6526e8d8 | fix(settings): esconder aba Pagamentos sem feature checkout |
+| c01328f7 | fix(followup): esconder tipos PIX e Renovação sem feature checkout |
+
+### Fixes
+- Aba Pagamentos escondida sem feature checkout
+- PIX Pendente e Renovação Mensal escondidos no Follow-up sem checkout
+- Default do form de nova automação: trial_expired (não pix_pending)
+
+### Backlog sessão 8 — Maturidade do SaaS
+- Reorganizar sidebar por categoria (ATENDIMENTO/AUTOMAÇÃO/MARKETING/IA/LOJA)
+- Follow-ups e Histórico como abas dentro de Automações
+- Automações: agrupar 9 abas em 3 grupos (Conteúdo/Fluxos/Configuração)
+- Onboarding guiado (CRÍTICO para beta)
+- Polimento geral (loading, empty states, tooltips)

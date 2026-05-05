@@ -313,3 +313,9 @@
 - Undo/Redo no editor
 - Portal de suporte público
 - Notificação trial vencendo
+
+### Pendente para próxima sessão (continuação sessão 8)
+- Adicionar sales_brain, knowledge, ai_studio como módulos separados no master
+- Remover propagação automática de sales_brain/knowledge com ai_responses
+- Cada sub-módulo de IA controlável independentemente
+- Outros módulos também separáveis (seguir mesmo padrão)

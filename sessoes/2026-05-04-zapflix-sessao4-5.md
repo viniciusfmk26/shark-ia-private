@@ -207,3 +207,40 @@
 - Onboarding guiado (ÚLTIMO antes do beta)
 - Editor visual de checkout
 - Portal de suporte público
+
+## Sessão 7 (2026-05-04 noite)
+
+### Commits
+
+| Commit | Feature |
+|---|---|
+| fef12cfd | fix(automations): renomear Modo interceptor → Modo exclusivo do fluxo |
+| fc9e70d3 | fix(sidebar): Funis de Conversão + Menu Interativo (URA) |
+| d44c5544 | fix(guided-funnels): esconder Gerar com IA sem ai_responses |
+| 6889fe02 | fix(guided-funnels): webchat gate + IA editor gate + fix click |
+| e843e504 | fix(guided-funnels): click card + botões ✏️🗑️ no node |
+| a4d19e17 | fix: follow_up liberado quando funnels ativo |
+| 6526e8d8 | fix(settings): esconder aba Pagamentos sem feature checkout |
+
+### Fixes feature gating
+- Modo exclusivo do fluxo (antes: Modo interceptor)
+- Funis → Funis de Conversão, Funil Guiado → Menu Interativo (URA)
+- Gerar com IA escondido sem ai_responses (lista + editor + empty state)
+- Só Webchat escondido sem feature webchat
+- Aba Pagamentos escondida sem feature checkout
+- follow_up liberado automaticamente com funnels
+
+### Fixes editor de funil
+- Clicar no card navega direto sem F5
+- Botões ✏️ 🗑️ aparecem no hover de cada node
+- e.stopPropagation() nos botões de ação do card
+
+### Backlog sessão 8
+- Layout automático funcionando no editor
+- Delete/Backspace para deletar node selecionado
+- Undo/Redo no editor
+- CRUD de pastas para Mídias e Documentos
+- Onboarding guiado (ÚLTIMO antes do beta)
+- Editor visual de checkout
+- Portal de suporte público
+- Notificação trial vencendo

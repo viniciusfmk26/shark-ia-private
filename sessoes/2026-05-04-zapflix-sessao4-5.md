@@ -265,3 +265,51 @@
 - Automações: agrupar 9 abas em 3 grupos (Conteúdo/Fluxos/Configuração)
 - Onboarding guiado (CRÍTICO para beta)
 - Polimento geral (loading, empty states, tooltips)
+
+## Sessão 8 (2026-05-05)
+
+### Commits
+
+| Commit | Feature |
+|---|---|
+| 418acf58 | feat(sidebar): reorganizar navegação — Marketing, Loja, Automação |
+| 0240a41f | fix(sidebar): remover Funis de Conversão duplicado |
+| 70ccb116 | fix: feature gates + campanhas loading |
+| 3caac092 | fix: followup botões editar/excluir + voltar |
+| 14678827 | feat(groups): aba Listas de Grupos com CRUD |
+| 76e08614 | feat(groups): seleção individual de contatos + disparo |
+| eb57e97a | fix(ai): modos IA + sales_brain/knowledge com ai_responses |
+| bfb6ecea | fix(features): templates junto com funnels |
+| 5feb1325 | fix(guided-funnels): modal importar JSON com scroll |
+
+### Reorganização sidebar
+- Automação: Automações, Funil Guiado, Templates
+- Marketing: Campanhas, Grupos & Massa, Agendamentos
+- Loja: Vendas + IPTV unificados
+- Follow-ups e Histórico como abas dentro de /automations
+
+### Feature gates corrigidos
+- "Inserir Link de Pagamento" → checkout
+- "Melhorar/Variar com IA" grupos → ai_responses
+- "send_test_iptv" → iptv
+- Campanhas loading infinito → try/finally
+- Botão Voltar + ✏️🗑️ no Follow-up
+- Cérebro de Vendas e Conhecimento → propagam com ai_responses
+- Templates → propaga com funnels
+- Modos Copiloto/Autônomo → liberados com trial ai_responses
+
+### Listas de Grupos
+- Nova aba "Listas de Grupos" em /groups
+- CRUD: renomear, excluir, ver contatos
+- Seleção individual de contatos com checkbox
+- Disparar para selecionados com textarea inline
+- "Disparar para toda a lista" mantido
+
+### Backlog sessão 9
+- Onboarding guiado (CRÍTICO para beta)
+- Resumo de grupos com IA
+- Visualização mensagens de grupos em tempo real
+- Layout automático editor de funil
+- Undo/Redo no editor
+- Portal de suporte público
+- Notificação trial vencendo

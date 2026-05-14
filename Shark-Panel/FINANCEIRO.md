@@ -1,62 +1,31 @@
-# Financeiro — Documentação
+# Módulo: Financeiro / Pagamentos
 
-> Cobrança, checkout, pagamentos PIX/AmploPay, revendedores e comissões.
+## Responsabilidade
+Pagamentos via PIX (AmloPay), comissões, revendedores, gamificação financeira.
 
-## Visão geral
+## Arquivos principais
+```
+app/api/payments/webhook/route.ts         → webhook AmloPay
+app/api/payments/amplopay-webhook/        → webhook alternativo
+app/api/payments/register/route.ts        → registro manual
+app/api/iptv/payments/route.ts            → pagamento IPTV
+app/api/gamification/payroll/route.ts     → folha de pagamento
+app/api/gamification/withdraw/route.ts    → saque de comissão
+app/api/resellers/withdraw/route.ts       → saque revendedor
+lib/payments/amplopay.ts                  → integração AmloPay
+lib/payments/send-payment-confirmation.ts → envia comprovante
+lib/gamification.ts                       → lógica de pontos
+```
 
-Dois sistemas integrados:
-1. **App principal** (`/app`) — pedidos, pagamentos, cobrança, recorrência.
-2. **Checkout separado** (`/checkout` — Vite + tRPC + MySQL 8) — em `checkout.appcineflick.com.br`.
+## Duas trilhas de comissão
+1. **Financeira (R$):** `agent_commissions` + `agent_performance_daily`
+2. **Gamificação (pontos):** `internal_credits_transactions`
 
-## Tabelas (Postgres principal)
+## Formatação de valores
+Valores no banco vêm com casas decimais extras (ex: `49.900000`).
+Sempre formatar com: `(valor / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })`
+Ou usar `lib/utils/format.ts`.
 
-| Tabela | Conteúdo |
-|---|---|
-| `payments` | Pagamentos individuais (status `confirmed`/`pending`/`refunded`, `amount_cents`, `sold_by_user_id`, `sale_type`) |
-| `checkout_orders` | Pedidos vindos do sistema de checkout (PIX) |
-| `checkout_utm` | Tracking UTM (utm_source/medium/campaign) |
-| `subscriptions` | Assinaturas ativas |
-| `resellers` | Cadastro de revendedores |
-| `reseller_sales` | Vendas por revendedor |
-| `reseller_withdrawals` | Saques |
-
-## Pages
-
-- `/financeiro` — visão geral (receita, recebíveis, pagamentos pendentes)
-- `/pedidos` — listagem de pedidos
-- `/recorrencia` — gestão de assinaturas recorrentes
-- `/cobranca-rapida` — emissão rápida de cobrança PIX
-- `/checkout-admin` — admin do checkout (gateways, produtos)
-- `/coupons` — cupons
-- `/billing` — faturamento
-
-## APIs
-
-| Rota | Descrição |
-|---|---|
-| `/api/payments/*` | CRUD de pagamentos |
-| `/api/checkout/*` | Bridge com sistema de checkout |
-| `/api/cobranca/*` | Geração de cobrança |
-| `/api/affiliates/*` | Afiliados |
-| `/api/resellers/*` | Revendedores |
-
-## Gateways
-
-- **AmploPay** — PIX principal (env: `AMPLOPAY_PUBLIC_KEY`, `AMPLOPAY_SECRET_KEY`)
-- Webhook em `/api/webhooks/amplopay`
-
-## Crons financeiros
-
-- `abandoned-cart` — carrinho abandonado
-- `pix-followup` — follow-up de PIX gerados não pagos
-- `plan-expiry` — verificação de expiração de planos
-- `renewal-check` — checa renovações
-- `reseller-billing` — fatura revendedores
-
-## Convenção de servidores (legado)
-
-`checkout_plans.server` é integer 1/2 sem FK; map por slug:
-- `1` = megabox
-- `2` = tps
-
-(Manter compatibilidade; quem adicionar nova integração deve usar mapping por slug.)
+## Provedores de pagamento
+- AmloPay: principal gateway PIX
+- LowTicket: gateway alternativo (`app/api/lowticket/`)

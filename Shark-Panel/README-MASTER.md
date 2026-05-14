@@ -1,38 +1,41 @@
-# Shark Panel — Documentação Técnica Completa
+# Módulo: Master Panel
 
-## Estrutura
+## Responsabilidade
+Painel administrativo global — gerencia workspaces, revendedores, planos, features e billing.
 
-### `/mapas/`
-Mapas estruturais do projeto:
-- `MAPA-COMPLETO-SHARK-PANEL.md` — visão geral completa (680 linhas)
-- `mapa-rotas.md` — todas as rotas API + UI
-- `mapa-banco.md` — schema completo do PostgreSQL
-- `mapa-permissoes.md` — RBAC, plans, features
-- `mapa-fluxos.md` — fluxos de negócio (signup, payment, trial, etc)
-- `mapa-integracoes.md` — Sigma, AmploPay, OpenAI, WAHA, etc
+## Arquivos principais
+```
+app/api/master/workspaces/            → CRUD workspaces
+app/api/master/resellers/             → gestão de revendedores
+app/api/master/features/route.ts      → feature flags por workspace
+app/api/master/financeiro/            → financeiro global
+app/api/master/users/                 → usuários
+app/api/master/plans/                 → planos SaaS
+app/api/master/trials/                → trials de módulo
+app/api/master/ai-agents/             → agentes globais
+app/api/master/module-trials/         → trials de módulos
+app/master-login/page.tsx             → login master separado
+components/layout/master-sidebar.tsx  → sidebar master
+components/master/                    → componentes master
+lib/auth/superadmin.ts                → guard de superadmin
+lib/auth/require-superadmin.ts
+```
 
-### `/deep-dives/`
-Análise profunda de áreas específicas:
-- `INDEX.md` — guia de navegação
-- `deep-automations.md` — sistema de automação
-- `deep-funnels.md` — funis de venda
-- `deep-drip.md` — campanhas drip
-- `deep-ia.md` — agentes IA + ai-studio
-- `deep-knowledge.md` — knowledge base
-- `deep-followup-scheduled.md` — follow-ups agendados
-- `deep-webchat-recorrencia.md` — webchat
-- `deep-sales-brain.md` — sales brain pipeline
+## Acesso
+- URL: `/master-login`
+- Role: `superadmin`
+- Guard: `lib/auth/require-superadmin.ts`
 
-### `/auditorias-tecnicas/`
-Auditorias técnicas por data:
-- `2026-04-29-multitenant-bugs/` — 9 deep-dives multi-tenant
-- `2026-04-29-pipeline-sales-brain/` — fix sales-brain pipeline
-- `2026-04-29-noite-*` — auditoria noturna (workers, master, áreas pendentes)
+## Feature flags (módulos)
+Controlados em `master/features`. Flags importantes:
+- `iptv` → módulo IPTV
+- `billing` → cobrança
+- `ai_responses` → IA automática
+- `campaigns` → campanhas
+- `sales_brain` → Sales Brain
+- `knowledge` → base de conhecimento
 
-### `/seguranca/`
-Análises de segurança:
-- `2026-04-29-multitenant-amplo.md` — análise ampla todas tabelas
-- `2026-04-29-secrets.md` — secrets em logs/código
-
-### `bugs.md`
-Catálogo de bugs (resolvidos + pendentes).
+## Multi-tenant
+- Cada workspace tem seu `workspace_id` (UUID)
+- Workspace do Shark Panel (smoke test): `00000000-0000-0000-0000-000000000002`
+- Isolamento via RLS no Postgres + verificação em cada route handler

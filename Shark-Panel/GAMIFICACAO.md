@@ -1,50 +1,29 @@
-# Gamificação — Documentação
+# Módulo: Gamificação / Equipe
 
-> Sistema de XP / níveis / créditos / badges para engajar atendentes e revendedores.
+## Responsabilidade
+Sistema de pontos, ranking, metas, comissões e performance da equipe.
 
-## Tabelas
+## Arquivos principais
+```
+app/api/gamification/config/route.ts      → configuração de pontos
+app/api/gamification/leaderboard/route.ts → ranking
+app/api/gamification/my-stats/route.ts    → stats do usuário
+app/api/gamification/payroll/route.ts     → folha de pagamento
+app/api/gamification/withdraw/route.ts    → saque
+app/api/credits/balance/route.ts          → saldo de créditos
+app/api/credits/transactions/route.ts     → histórico
+app/api/team/[userId]/route.ts            → performance individual
+app/api/team/[userId]/financial/route.ts  → financeiro do membro
+lib/gamification.ts                       → lógica central
+```
 
-| Tabela | Conteúdo |
-|---|---|
-| `agent_levels` | XP, nível, créditos por usuário/workspace |
-| `agent_xp_log` | Histórico de eventos de XP (motivo, valor, timestamp) |
-| `agent_badges` | Conquistas (badges) dos agentes |
-| `agent_performance_daily` | Snapshot diário de métricas (vendas, atendimentos, etc.) |
-| `agent_daily_activity` | Atividade diária consolidada |
-| `agent_commissions` | Comissões devidas/pagas |
-| `gamification_config` | Configuração por workspace (XP por evento, regras) |
-| `reseller_levels` | Níveis e regras para revendedores |
-| `credit_store_redemptions` | Resgates da loja de créditos |
-| `shop_redemptions` | Resgates da loja (versão alternativa) |
-| `workspace_goals` | Metas configuradas no workspace |
+## Tabelas principais
+- `internal_credits_transactions` → pontos ganhos
+- `agent_commissions` → comissões em R$
+- `agent_performance_daily` → snapshot diário
+- `gamification_config` → configuração de pontos por ação
+- `gamification_withdrawals` → saques solicitados
 
-## Eventos que geram XP (típicos)
-
-| Evento | XP padrão |
-|---|---|
-| Mensagem enviada | +1 |
-| Conversão (venda confirmada) | +50 |
-| Resposta dentro de SLA | +5 |
-| Resolver ticket | +10 |
-
-Valores configuráveis em `gamification_config`. Aplicação dispara `agent_xp_log` + `UPDATE agent_levels`.
-
-## Páginas
-
-- `/gamification` — overview do agente (XP, nível, badges)
-- `/meu-desempenho` — desempenho individual (vendas, atendimentos)
-- `/redemptions` — loja de resgates
-- `/metas` — metas e progresso
-- `/reseller-dashboard` — dashboard de revendedor
-
-## APIs
-
-- `/api/gamification/*` — XP, leaderboard, badges
-- `/api/redemptions/*` — resgates
-- `/api/goals/*` — metas
-
-## Crons relacionados
-
-- `reseller-levels` — recalcula níveis de revendedores
-- `metrics-snapshot` — snapshot diário em `agent_performance_daily`
-- `monthly-payroll` — comissões mensais
+## Página de desempenho
+`/team/[userId]` → visão do gestor sobre um membro
+`/meu-desempenho` → visão do próprio vendedor (PLANEJADO)

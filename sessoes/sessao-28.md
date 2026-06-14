@@ -56,3 +56,27 @@
 - VPS restart pendente (security updates)
 - IP Traefik muda se container reiniciar (atual: 10.11.0.169)
 - Throttle revisar valor adequado (5 pode ser baixo demais)
+
+## Atualização pós-Obsidian (parte 2)
+
+### Commits adicionais
+- `7967b6ab` feat: gate reply no funil — só avança Oferta+PIX e Urgência se cliente respondeu
+- `1c5a2903` feat: campo head/body HTML nas páginas públicas /app/[slug] para Meta Pixel e verificação Facebook
+
+### Itens resolvidos (pós-Obsidian)
+- Throttle: 5 → 15/hora (Opção B — instância herda workspace)
+- Duplicata compliance_settings removida (ficou 1 linha limpa)
+- Funil gate reply: requires_reply=true nos stages Oferta+PIX e Urgência
+- 39 checkout_pix marcados como organic_funnel
+- MinIO: não necessário mudar (URL interna invisível ao usuário)
+- head/body HTML: migration + CustomHtml client component + UI + API
+
+### Pendências Sessão 29
+- Onboarding WABA completo (Julia Abreu → Empresa Marcia Maria Stahl)
+- Migration: company_id em whatsapp_instances
+- UI instâncias: seletor empresa + auto-preenche WABA ID
+- Templates dentro de Empresas → WABA → Templates
+- Conversions API Meta (depende do onboarding WABA)
+- VPS restart (19 updates, 13 security) — janela: 2h-4h BRT
+- Funil paused_no_reply: cron para reativar quando cliente responder
+- Lógica funil Evolution: verificar se gate reply deve aplicar também

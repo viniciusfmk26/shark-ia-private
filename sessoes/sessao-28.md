@@ -80,3 +80,29 @@
 - VPS restart (19 updates, 13 security) — janela: 2h-4h BRT
 - Funil paused_no_reply: cron para reativar quando cliente responder
 - Lógica funil Evolution: verificar se gate reply deve aplicar também
+
+## Atualização pós-Obsidian (parte 3 — 15/06/2026)
+
+### Commits adicionais
+- `61355360` feat: preview visual WhatsApp nos templates com edição inline
+- `1c5a2903` feat: campo head/body HTML nas páginas públicas /app/[slug]
+- `7967b6ab` feat: gate reply no funil
+- `3474d2ae` feat: Worker popup dados reais compliance/funil
+- `6257d6b6` feat: redesign Worker popup seções visuais
+- `83d55df9` fix: Cloud API excluída do check-instance-health
+
+### Bugs corrigidos
+- Cron wp_zapflix-cron estava na imagem errada (zapflix-tech:latest em vez de easypanel/wp/zapflix-cron:latest) — renewal-check não rodava há dias
+- 35 cobranças enviadas manualmente após correção
+- Julia Abreu e Marlene Marafiga apareciam como Offline no front — corrigido no banco e no cron
+
+### Pendências Sessão 29
+- Onboarding WABA completo (Julia Abreu → Empresa Marcia Maria Stahl)
+- Migration: company_id em whatsapp_instances
+- UI instâncias: seletor empresa + auto-preenche WABA ID
+- Templates dentro de Empresas → WABA → Templates
+- Cron heartbeat no banco (mostrar último run de cada job no Worker popup)
+- Renovações: mostrar instância que vai cobrar no card
+- Funil paused_no_reply: cron para reativar quando cliente responder
+- VPS restart (19 updates, 13 security) — janela: 2h-4h BRT
+- Amanda Soares: status 'banned' — verificar

@@ -118,3 +118,31 @@
 ## Fix adicional (15/06/2026 tarde)
 - Cloud API voltou a aparecer como Offline após cron rodar antes do deploy
 - Corrigido no banco novamente + fix já deployado (83d55df9) garante que não volta
+
+## Atualização final (15/06/2026 noite)
+
+### Commits adicionais
+- `2b743e4b` fix: link Ver detalhes movido para título seção Compliance Meta
+- `89cf8c08` feat: migration 140 iptv_checkout_config + /comprar config-driven
+- `db77aab3` feat: tooltip instância no botão Cobrar renovações
+- `592fbd10` feat: link Ver detalhes no Worker popup
+- `4356fadf` feat: reativar funil pausado automaticamente quando cliente responde
+
+### Implementado hoje (15/06)
+- Cron renewal-check corrigido (estava na imagem errada)
+- 35 cobranças enviadas após correção
+- Worker popup redesenhado com dados reais (compliance + funis)
+- Cloud API (Julia/Marlene) não mais marcada como Offline
+- check-instance-health exclui Cloud API
+- Migration 140: tabela iptv_checkout_config criada
+- /comprar config-driven com fallback (headlines, depoimentos, CTA, cores, urgência, páginas especiais)
+- Tooltip "Cobrar via [instância]" no painel de renovações
+- Funil reativado automaticamente quando cliente responde (webhook → UPDATE funnel_contacts)
+
+### Pendências Sessão 29
+- Onboarding WABA completo (Julia Abreu → Empresa)
+- Editor visual checkout IPTV (passos 3-6: API iptv-config, editor dashboard, pixels, páginas especiais)
+- Cron heartbeat no banco
+- VPS restart (19 updates, 13 security)
+- Redesign cards de renovação
+- Amanda Soares: status 'banned' — verificar

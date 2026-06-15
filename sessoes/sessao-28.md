@@ -106,3 +106,7 @@
 - Funil paused_no_reply: cron para reativar quando cliente responder
 - VPS restart (19 updates, 13 security) — janela: 2h-4h BRT
 - Amanda Soares: status 'banned' — verificar
+
+## Fix adicional (15/06/2026 tarde)
+- Cloud API voltou a aparecer como Offline após cron rodar antes do deploy
+- Corrigido no banco novamente + fix já deployado (83d55df9) garante que não volta

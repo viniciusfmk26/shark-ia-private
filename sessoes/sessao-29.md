@@ -41,3 +41,37 @@
 - Cron heartbeat no banco
 - Order bumps no checkout IPTV
 - phone_number real da Julia Abreu (GET /v20.0/1147025105164350?fields=display_phone_number)
+
+## Atualização final (16/06/2026)
+
+### Commits adicionais
+- `77e946cd` fix: formatar CNPJ no formato XX.XXX.XXX/XXXX-XX nas páginas públicas
+- `581283c0` fix: passar GIT_SHA como build-arg para consistência do Service Worker
+- `042095dd` fix: formatar número telefone/WhatsApp com +55 (DDD) na página de contato
+- `05ae4df1` fix: forçar recompilação do chunk recurrence-panel
+- `b1b33dfd` fix: Service Worker cache invalidation por deploy via git-sha
+- `2755f362` fix: processar status failed Cloud API, corrigir statusOrder e guard 24h
+
+### Bugs corrigidos
+- PIX avulso/valor personalizado na página pública dava Unauthorized — removida restrição de sessão
+- CNPJ formatado: 46544438000131 → 46.544.438/0001-31
+- Telefone formatado: 5399180773 → +55 (53) 99180-773
+- Service Worker não invalidava cache após deploy (GIT_SHA inconsistente entre env e arquivo)
+- Webhook Cloud API descartava silenciosamente statuses[] (failed/delivered/read)
+- Status 'failed' nunca era gravado no banco (statusOrder não incluía 'failed')
+- Guard de janela 24h era pulado para envios automáticos com sent_by_user_id do sistema
+- Chave Anthropic: use_shared_key=true impedia uso da chave configurada no banco
+- PIX copia-e-cola com valor livre no checkout dialog enviava link em vez de PIX
+
+### Bugs de usuário resolvidos
+- Senha do painel: resetada via bcrypt no banco (nextauth_users)
+- use_shared_key=false para workspace master (geração de conteúdo IA funcionando)
+
+### Pendências Sessão 30
+- Sistema de distribuição de conversas (botão "Estou disponível")
+- Editor visual checkout IPTV — passos finais (order bumps, upsell)
+- Templates dentro de Empresas → WABA → Templates
+- VPS restart (19 updates, 13 security)
+- Cron heartbeat no banco
+- Redesign cards de renovação (visual antigo ainda aparece por SW cache)
+- Página de detalhe da empresa com WABAs vinculados

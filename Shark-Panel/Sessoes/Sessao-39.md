@@ -84,6 +84,43 @@ Identificadas durante auditoria — não estavam no recap da sessão 37+38:
 
 ---
 
+### 5. Meta Ads — Integração completa (6 commits durante o dia)
+
+Integração com Meta Ads implementada do zero ao longo do dia 26/06, totalizando 6 commits:
+
+**`57e52d27` — 15:45 — Base da integração**
+- OAuth flow completo (`/api/meta/auth`, `/api/meta/callback`)
+- Token manual como alternativa ao OAuth
+- Sync, disconnect e status da conexão
+- `lib/meta-api.ts` criado do zero
+- Aba Integrações nas Settings com painel Meta
+
+**`6b8f5b74` — Auto-select de Ad Account após OAuth**
+
+**`5b42f8fa` — 19:14 — Connect pages + Ad Accounts**
+- Seleção de conta de anúncios e página vinculada
+
+**`35481f89` — 20:29 — Refactor multi-conexão (Opus)**
+- Migration 154: `workspace_meta_connections` — N conexões Facebook por workspace
+- Cada conexão com token próprio, conta e página selecionada
+- Rotas: `GET/DELETE/PATCH /connections/[id]`, `/accounts`, `/sync`
+- Interface com lista de conexões, renomear, remover, sincronizar
+
+**`661eac4d` — 21:59 — Detalhes da conta**
+- Foto de perfil, status da conta, gasto total, página vinculada
+
+**`a9289485` — 22:57 — Card com tabs, campanhas e alertas**
+- Card de conexão com abas
+- Listagem de campanhas
+- Sistema de alertas Meta
+- `lib/meta-api.ts` expandido com Graph API
+
+**Pendente na integração Meta Ads:**
+- Dados reais de ROI/CPL/CPA no dashboard (ainda mockados)
+- Integração Graph API para métricas reais de campanhas
+
+---
+
 ## Estado final do sistema
 
 | Item | Status |

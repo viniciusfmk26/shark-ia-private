@@ -1,5 +1,7 @@
 # Mapa Completo — Shark Panel
 
+> ⚠️ **Mapa de referência vigente: [MAPA-OFICIAL-2026-07-07.md](MAPA-OFICIAL-2026-07-07.md)** (auditoria fresca de 8 dimensões em 2026-07-07 — 899 rotas, 285 tabelas, achados priorizados). Leia aquele primeiro. Esta tabela permanece como visão rápida de status/feature-flags.
+
 ## Visão geral dos módulos
 
 | Módulo | Status | Feature Flag | Doc |

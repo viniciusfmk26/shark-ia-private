@@ -3,3 +3,9 @@
 ## 2026-05-01 (sexta)
 - sessoes/2026-05-01-zapflix-manha-tarde-parte1.md (a documentar) — 22 commits do dia, inbox CRM open/pending/closed, fix unread fantasmas, ordenação WhatsApp-style
 - sessoes/2026-05-01-zapflix-tarde-noite-parte2.md — Lazy load + AbortController + fix filtro Não lidas + bugs IPTV (linked com '+', pagantes sem username)
+
+## 2026-07-11 (quinta)
+- Shark-Panel/Sessoes/2026-07-11_crm-completo-5-fases.md — CRM Completo (5 fases no ar), chatbot flow ativo, Meta Ads destravado, compliance Meta
+
+## 2026-07-12 a 2026-07-16 (sexta a terça) — Maratona
+- Shark-Panel/Sessoes/2026-07-12_a_2026-07-16_inbox-chatbot-meta-instagram.md — 76 commits: Inbox UX redesign completo (quality rating, filtro bot ao vivo, devolver ao bot, bloqueio janela 24h, apresentação automática), 4 bugs críticos chatbot corrigidos (auto-restore, fallback "Não entendi", keyword matching, timeout), Meta API v25, Instagram dashboard orgânico + automação, MasterSigma painel limpeza, tsconfig monorepo fix, Fase 1a null safety telefone

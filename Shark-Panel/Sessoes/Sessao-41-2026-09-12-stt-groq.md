@@ -1,0 +1,76 @@
+# Sessão 41 — Shark Panel
+**Data:** 12/09/2026
+**Foco:** Migração do STT (transcrição de áudio) da OpenAI para Groq (cota gratuita diária)
+
+---
+
+## Contexto
+
+Mapeamento completo do sistema de transcrição de áudio revelou que a rota web do inbox já usava faster-whisper local (`wp_zapflix-whisper`), mas o **worker** (fluxos audio_router + AI Agent) ainda chamava a **API OpenAI paga** diretamente via `transcribeAudioForAI()` em `apps/worker/src/shared.ts`.
+
+Motivação do usuário: transcrição local era lenta demais para chatbot (RTF 1.2–4.8x numa VPS de 4 vCPU saturada) e OpenAI custa ~$0.36/h de áudio. OpenRouter **não suporta STT** (só texto/chat). Solução escolhida: **Groq** (`whisper-large-v3-turbo`) — o usuário tem cota gratuita diária.
+
+---
+
+## Mapeamento do STT (estado antes)
+
+| Fluxo | Arquivo | Provedor antes |
+|---|---|---|
+| A. Inbox (botão transcrever) | `app/api/ai/transcribe/route.ts` | local_whisper (wp_zapflix-whisper:8000) |
+| B. Worker audio_router (voz inbound automática) | `apps/worker/src/shared.ts:1605` | OpenAI whisper-1 (pago) |
+| C. Worker AI Agent (contexto de áudio/vídeo) | `apps/worker/src/shared.ts:1524/1731` | OpenAI whisper-1 (pago) |
+| D. Checkout | `checkout/server/_core/voiceTranscription.ts` | Proxy Forge (separado, intocado) |
+
+---
+
+## O que foi feito
+
+### 1. Worker — Groq como provider primário (`apps/worker/src/shared.ts`)
+- Nova env: `GROQ_API_KEY` (export ao lado de EVOLUTION_*)
+- `transcribeAudioForAI()` reescrita: tenta **Groq** `whisper-large-v3-turbo` primeiro (language=pt, response_format=json, timeout 30s); em qualquer falha (429 cota diária, rede, vazio) → **fallback OpenAI** `whisper-1` com a chave do workspace
+- Logs agora incluem `provider: groq|openai`
+- Se `apiKey` (OpenAI) vazio mas Groq configurada → funciona igual (gate antigo foi removido)
+
+### 2. Worker audio_router — gate flexibilizado (`apps/worker/src/handlers/webhook.ts`)
+- Antes: sem `openai_api_key` no workspace → transcrição abortava
+- Agora: gate passando com `GROQ_API_KEY` sozinha; `apiKey: openaiKey || ''`
+
+### 3. Rota web — novo provider `groq_whisper` (`app/api/ai/transcribe/route.ts`)
+- `transcription_provider` aceita agora: `local_whisper` | `groq_whisper` | `openai_whisper`
+- `groq_whisper` usa env `GROQ_API_KEY` do serviço web, timeout 60s
+- Resolução de chave OpenAI agora só roda quando provider === 'openai_whisper'
+
+### 4. Deploy
+- `docker build -f Dockerfile.worker -t easypanel/wp/zapflix-worker:latest` + `docker build -t zapflix-tech:latest`
+- `docker service update --env-add GROQ_API_KEY=... --image ...` em **wp_zapflix-worker** e **wp_zapflix-web**
+- Ambos convergiram 1/1; worker processando webhooks normalmente pós-deploy
+
+---
+
+## Validação
+
+- Teste de chave Groq: `GET /openai/v1/models` OK; modelos relevantes: `whisper-large-v3-turbo`, `whisper-large-v3`
+- Teste com áudio REAL de produção (Ogg Opus Cloud API, 4s, do MinIO):
+  - `provider: groq`, **497ms**, texto correto em pt-BR
+  - Caminho sem chave OpenAI também validado (apiKey='' funcionou só com Groq)
+- Typecheck limpo: `tsc -p tsconfig.worker.json` e `tsc --noEmit` (web)
+
+---
+
+## Números
+
+| Provedor | Latência (áudio 4s) | Custo |
+|---|---|---|
+| **Groq whisper-large-v3-turbo** | **0.3–0.5s** | $0 (cota diária grátis) |
+| OpenAI whisper-1 (antes) | ~2–5s | ~$0.36/h áudio |
+| Local faster-whisper medium | ~5–19s (VPS saturada) | $0 |
+
+---
+
+## Notas / pendências
+
+- **Chave Groq foi colada em chat** — recomendação: regenerar no console (console.groq.com/keys) e atualizar env nos 2 serviços
+- Cota diária gratuita da Groq: se estourar, fallback OpenAI entra automático (log `fallback OpenAI`)
+- Fluxo D (checkout, `BUILT_IN_FORGE_API_URL`) não foi alterado — módulo separado
+- `deep-ia.md` seção 9.6 ("só openai implementado") ficou desatualizada — groq_whisper agora existe na rota
+- Serviço whisper local (`wp_zapflix-whisper`) segue no ar como padrão do inbox (fluxo A)

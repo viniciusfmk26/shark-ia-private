@@ -418,8 +418,8 @@ SELECT
 ```
 Se total > processed, há backlog.
 
-### 9.6 BUG: `transcription_provider='openai_whisper'` mas só openai está implementado
-`/api/ai/transcribe` só usa OpenAI. Configurar outro provider quebra silenciosamente.
+### 9.6 RESOLVIDO (12/09/2026): providers de transcrição
+`/api/ai/transcribe` agora implementa `local_whisper`, `groq_whisper` e `openai_whisper`. Worker usa Groq (`whisper-large-v3-turbo`, env `GROQ_API_KEY`) com fallback OpenAI. Ver Sessao-41.
 
 ### 9.7 BUG: `min_confidence` não é checado em todos lugares
 Worker tem `agent.min_confidence` mas use de forma inconsistente — escalation logic pode ignorar.

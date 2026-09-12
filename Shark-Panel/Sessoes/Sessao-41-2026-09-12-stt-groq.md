@@ -117,3 +117,17 @@ Verificado também: `audio_intent_skip_human_engaged` nos logs é comportamento 
 **Lição de deploy:** `docker service update --image TAG` NÃO rolou a task 2x seguidas (task antiga continuava com imagem anterior, `docker ps -q` pegava o container errado no exec). Sempre conferir `docker inspect $CONTAINER --format {{.Image}}` vs `docker image inspect TAG --format {{.Id}}` e usar `--force` quando necessário.
 
 **Estado final:** worker c1262b com todos os fixes; inbox (Sparkles + FileText) na Groq gpt-oss-120b; SalesBrain na Groq com throttle. OpenAI (sem créditos) só entra como fallback de último recurso.
+
+---
+
+## Sessão 41d (23:55) — Botão de resumo duplicado removido
+
+Inbox tinha 2 botões de resumo no toolbar (herança histórica):
+- 📄 FileText (perto da lupa) → `POST /summarize`, resumo texto corrido simples (legado)
+- ✨ Sparkles (perto da 💡 lâmpada) → `POST /summary`, dialog rico com interesse/objeções/next_step/status (versão nova)
+
+**Removido:** botão 📄 + estados `summarizing/summaryText/showSummary` + card violeta órfão em `chat-view.tsx`. Endpoint `/summarize` mantido no backend (pode ter consumers externos), só o botão saiu.
+
+Deploy: zapflix-tech:latest rebuildado, `--force` rolling update, convergido 1/1.
+
+O ✨ Sparkles é agora o único ponto de resumo no inbox (já na Groq gpt-oss-120b).

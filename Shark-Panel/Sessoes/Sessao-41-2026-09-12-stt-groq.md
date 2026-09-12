@@ -101,3 +101,19 @@ Verificado também: `audio_intent_skip_human_engaged` nos logs é comportamento 
 **Deploy:** worker + web rebuildados e convergidos 1/1. Teste E2E no container web: 200 OK, JSON correto.
 
 **Nota:** IA Agent de respostas (auto-reply) ainda usa OpenAI/OpenRouter — se `insufficient_quota` persistir nele, é o próximo a migrar. Sigma 403 Cloudflare é problema separado (painel externo bloqueando).
+
+---
+
+## Sessão 41c (23:40) — Rate limit Groq no SalesBrain corrigido
+
+**Problema pós-deploy:** SalesBrain (worker) processava até 20 conversas em rajada e estourava o TPM do free tier Groq (8000 tokens/min) com 429s.
+
+**Fixes em background.ts:**
+1. `max_tokens` 3000 → 1500
+2. `transcript.slice(0, 8000)` → `slice(0, 4000)`
+3. Throttle: pausa 25s após CADA conversa processada (~2600 tokens/call → ~6000 TPM)
+4. 429 → pausa 60s e deixa próximo ciclo reprocessar (NOT EXISTS já cobre)
+
+**Lição de deploy:** `docker service update --image TAG` NÃO rolou a task 2x seguidas (task antiga continuava com imagem anterior, `docker ps -q` pegava o container errado no exec). Sempre conferir `docker inspect $CONTAINER --format {{.Image}}` vs `docker image inspect TAG --format {{.Id}}` e usar `--force` quando necessário.
+
+**Estado final:** worker c1262b com todos os fixes; inbox (Sparkles + FileText) na Groq gpt-oss-120b; SalesBrain na Groq com throttle. OpenAI (sem créditos) só entra como fallback de último recurso.

@@ -74,3 +74,13 @@ Motivação do usuário: transcrição local era lenta demais para chatbot (RTF 
 - Fluxo D (checkout, `BUILT_IN_FORGE_API_URL`) não foi alterado — módulo separado
 - `deep-ia.md` seção 9.6 ("só openai implementado") ficou desatualizada — groq_whisper agora existe na rota
 - Serviço whisper local (`wp_zapflix-whisper`) segue no ar como padrão do inbox (fluxo A)
+
+---
+
+## Follow-up (mesma sessão, 22:45)
+
+Usuário reportou demora persistente. Diagnóstico: worker já na Groq (rápido), mas o **workspace principal seguia com `transcription_provider='local_whisper'`** no banco → botão "Transcrever" do inbox usava o whisper local (RTF médio 3.49, áudio de 30s → ~105s).
+
+**Fix:** `UPDATE ai_provider_settings SET transcription_provider='groq_whisper' WHERE workspace_id='00000000-...-0002'`. Sem restart necessário (rota lê config a cada request). Whisper local segue no ar como opção, mas fora do caminho padrão.
+
+Verificado também: `audio_intent_skip_human_engaged` nos logs é comportamento correto (áudio pulado quando atendente humano está na conversa).

@@ -84,3 +84,20 @@ Usuário reportou demora persistente. Diagnóstico: worker já na Groq (rápido)
 **Fix:** `UPDATE ai_provider_settings SET transcription_provider='groq_whisper' WHERE workspace_id='00000000-...-0002'`. Sem restart necessário (rota lê config a cada request). Whisper local segue no ar como opção, mas fora do caminho padrão.
 
 Verificado também: `audio_intent_skip_human_engaged` nos logs é comportamento correto (áudio pulado quando atendente humano está na conversa).
+
+---
+
+## Sessão 41b (22:55) — Resumos de conversa migrados para Groq
+
+**Causa raiz reportada pelo usuário:** resumo no inbox quebrado. Logs confirmaram: OpenAI sem créditos (`insufficient_quota: You have no credits remaining`) — os 3 fluxos de resumo dependiam dela.
+
+**Nova chave Groq (chat):** `gsk_tPEk...` (diferente da de STT) configurada como `GROQ_CHAT_API_KEY` nos serviços web e worker. Modelo: `openai/gpt-oss-120b` (JSON estruturado perfeito em pt-BR, ~0.9s).
+
+**Fluxos migrados:**
+1. `/api/inbox/conversations/[id]/summary` (Sparkles): cadeia de attempts — provider 'groq' (se configurado) → OpenAI/OpenRouter do workspace → fallback Groq → heurístico. Env: `GROQ_CHAT_API_KEY`, `GROQ_CHAT_MODEL`
+2. `/api/inbox/conversations/[id]/summarize` (FileText): Groq primeiro, OpenAI como fallback
+3. Worker SalesBrain (`background.ts`): Groq como motor primário global; OpenAI/OpenRouter só se GROQ_CHAT_API_KEY ausente
+
+**Deploy:** worker + web rebuildados e convergidos 1/1. Teste E2E no container web: 200 OK, JSON correto.
+
+**Nota:** IA Agent de respostas (auto-reply) ainda usa OpenAI/OpenRouter — se `insufficient_quota` persistir nele, é o próximo a migrar. Sigma 403 Cloudflare é problema separado (painel externo bloqueando).

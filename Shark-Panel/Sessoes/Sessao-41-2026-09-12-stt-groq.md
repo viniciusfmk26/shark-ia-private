@@ -145,3 +145,21 @@ O ✨ Sparkles é agora o único ponto de resumo no inbox (já na Groq gpt-oss-1
 **Descartado no diagnóstico (importante):** Groq OK (gpt-oss-120b SEM response_format json_object — reasoning models não suportam JSON mode, dá 400), parse do JSON OK, API viva, endpoint retorna 401 sem auth (rota viva). Nota: a `callAI` do /summary não usa response_format, então não é afetada pelo 400 do JSON mode.
 
 **Deploy:** zapflix-tech rebuildado, --force, convergido. useEffect confirmado nos chunks.
+
+---
+
+## Sessão 41f (13/09, 00:40) — Embeddings RAG migrados para NVIDIA NIM (free)
+
+**Contexto:** usuário ofereceu key NVIDIA (nvapi-W9...) e modelos free. Testes no hosted API (integrate.api.nvidia.com):
+- ✅ `nvidia/nemotron-3-embed-1b`: 2048 dims, batch OK, input_type query/passage, free
+- ❌ Rerankers (nemotron-rerank-vl-1b-v2 etc.): NÃO disponíveis no hosted API (rota /v1/ranking 404, zero modelos rank em /v1/models) — são NIMs downloadable/self-host only; VPS não tem CPU pra isso
+- ✅ pgvector FUNCIONA na imagem pgvector/pgvector:pg17 (doc de agosto sobre ".so ausente" está desatualizado)
+
+**Mudanças:**
+1. `lib/rag/embeddings.ts`: OpenAI text-embedding-3-small (1536) → NVIDIA nemotron-3-embed-1b (2048). Env: `NVIDIA_API_KEY`, `NVIDIA_EMBED_MODEL`, `NVIDIA_BASE_URL`. Nova `embedQuery()` (input_type=query) vs `embedTexts` (input_type=passage) — retrieval assimétrico
+2. `rag-search/route.ts`: query agora via `embedQuery()`
+3. DB: `knowledge_chunks.embedding_vec` vector(1536) → vector(2048). Índice ivfflat DROPPADO — limite pgvector: index só até 2000 dims. Tabela vazia + linear scan ok; se volume crescer, migrar pra HNSW com halfvec(2048)
+
+**Deploy:** zapflix-tech rebuildado, env NVIDIA_API_KEY no wp_zapflix-web, E2E no container: 200 OK 2048 dims.
+
+**Estado do RAG:** stack viva e 100% free (embedding NVIDIA + pgvector local). knowledge_chunks vazia (indexing é on-demand via POST /api/knowledge/documents/[id]/index). RAG ainda NÃO plugado no chatbot (contexto usa recência, não semântica) — fase 2 se desejado.

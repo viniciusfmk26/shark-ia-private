@@ -182,3 +182,18 @@ O ✨ Sparkles é agora o único ponto de resumo no inbox (já na Groq gpt-oss-1
 **Validado no container worker:** rerank 200 OK (top doc correto, 972ms), chat 200 OK.
 
 **Stack IA final 100% operacional e ~free:** STT Groq (free) · Resumos Groq (free) · SalesBrain Groq (free) · Embeddings NVIDIA (free) · Rerank NVIDIA via OpenRouter (free) · Auto-reply gpt-oss-20b OpenRouter (~$2/mês)
+
+---
+
+## Sessão 41h (13/09, 01:40) — Vision + TTS free plugados
+
+**Vision do bot (imagens do cliente):**
+- `ai.ts`: modelo vision agora é `AI_VISION_MODEL` (default `qwen/qwen3-vl-8b-instruct` via OpenRouter, ~$0.00002/imagem testada). Antes: gpt-4o-mini (OpenAI quebrada = visão morta)
+- Testado: qwen3-vl leu imagem de teste perfeitamente em pt-BR. `ling-3.0-flash-vl:free` existe mas provider free instável (502)
+
+**TTS (Gerar Áudio com IA):**
+- Testados os TTS free do OpenRouter: `fish-audio/s2.1-pro-free:free` pt-BR **perfeito** (transcrição reversa confirmou diction exata); `deepgram/flux-tts:free` inutilizável em pt (pronúncia mangled)
+- `generate-audio/route.ts`: ElevenLabs falha (sem key/quota/401) → fallback Fish Audio free via OpenRouter. Salva em automation_media com metadata `fish_audio_fallback`
+- Env `OPENROUTER_API_KEY` adicionada também ao wp_zapflix-web (401 no primeiro teste — só worker tinha)
+
+**E2E validado:** Fish TTS 200 OK do container web (49KB mp3). Deploy worker + web convergidos.

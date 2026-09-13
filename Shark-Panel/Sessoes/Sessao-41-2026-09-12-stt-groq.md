@@ -131,3 +131,17 @@ Inbox tinha 2 botões de resumo no toolbar (herança histórica):
 Deploy: zapflix-tech:latest rebuildado, `--force` rolling update, convergido 1/1.
 
 O ✨ Sparkles é agora o único ponto de resumo no inbox (já na Groq gpt-oss-120b).
+
+---
+
+## Sessão 41e (00:10) — Dialog de resumo abria vazio (bug React)
+
+**Sintoma:** dialog ✨ abria mas só mostrava o título "Resumo IA da Conversa" — sem loading, sem resultado.
+
+**Causa raiz:** `generate()` estava dentro de `onOpenChange` do Radix Dialog. Abertura programática (botão Sparkles → setState) NÃO dispara `onOpenChange` — o callback só dispara em interações internas (ESC/overlay). `generate()` nunca era chamado.
+
+**Fix:** `useEffect(() => { if (open && !result && !loading) generate(); }, [open])` em `ai-summary-dialog.tsx`. Provavelmente o dialog nunca funcionou corretamente por botão.
+
+**Descartado no diagnóstico (importante):** Groq OK (gpt-oss-120b SEM response_format json_object — reasoning models não suportam JSON mode, dá 400), parse do JSON OK, API viva, endpoint retorna 401 sem auth (rota viva). Nota: a `callAI` do /summary não usa response_format, então não é afetada pelo 400 do JSON mode.
+
+**Deploy:** zapflix-tech rebuildado, --force, convergido. useEffect confirmado nos chunks.

@@ -31,3 +31,9 @@ Setup operacional: agent **"Julia (Amigo por Voz)"** (`3ae8ac1f`, workspace ...0
 
 ## Commits
 - `fa8b2bda` modo voz + clone UI · `0c773776` fixes transcrição/router · `0e5464c0` pronúncia TTS + estúdio
+
+## Adendo (04:50) — Vendas autônoma sem fluxo
+- Decisão do usuário: NÃO reativar o fluxo "Menu Principal - Atendimento" (draft) — agent autônomo direto
+- `ai.ts`: nova action **`gerar_teste_iptv`** — agent retorna action → `generateIptvTrialForChatbot()` (mesma lógica Sigma do nó do fluxo, reuse guard incl.) → envia credenciais (+4s) → link checkout (+9s, `servidor=2&utm_medium=agent_ia`) → updateFicha
+- Link checkout: `agent.checkout_url` (se setado) ou fallback `NEXT_PUBLIC_CHECKOUT_URL || app.sharkpanel.com.br/comprar`
+- Commit `9b4f340c`. Fluxo 31c76a1f permanece draft (documentado aqui que NÃO deve ser reativado sem decisão)

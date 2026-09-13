@@ -37,3 +37,11 @@ Setup operacional: agent **"Julia (Amigo por Voz)"** (`3ae8ac1f`, workspace ...0
 - `ai.ts`: nova action **`gerar_teste_iptv`** — agent retorna action → `generateIptvTrialForChatbot()` (mesma lógica Sigma do nó do fluxo, reuse guard incl.) → envia credenciais (+4s) → link checkout (+9s, `servidor=2&utm_medium=agent_ia`) → updateFicha
 - Link checkout: `agent.checkout_url` (se setado) ou fallback `NEXT_PUBLIC_CHECKOUT_URL || app.sharkpanel.com.br/comprar`
 - Commit `9b4f340c`. Fluxo 31c76a1f permanece draft (documentado aqui que NÃO deve ser reativado sem decisão)
+
+## Adendo 2 (05:20) — Voz por agent
+- Migration: `ALTER TABLE ai_agents ADD COLUMN IF NOT EXISTS voice_id text NULL` (aplicada)
+- API `/api/ai/agents`: voice_id no INSERT + PATCH (sanitizado, null limpa)
+- Wizard do agent (components/ai/agent-wizard.tsx): seletor "Voz (modo voz)" ao lado do modelo, carrega vozes de /api/elevenlabs/voices, "Padrão do workspace" = null
+- Configurações → IA: seletor "Voz padrão (modo voz)" salva default_voice_id via /api/elevenlabs/settings
+- tts.ts resolveVoice(): prioridade **agent.voice_id → workspace default_voice_id → primeira elevenlabs_voices → default ElevenLabs**; modelo = preferred_model da voz → workspace → multilingual_v2
+- Commit `cbd20737`

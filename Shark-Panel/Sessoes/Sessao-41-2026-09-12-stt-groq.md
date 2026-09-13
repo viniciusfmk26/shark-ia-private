@@ -163,3 +163,22 @@ O ✨ Sparkles é agora o único ponto de resumo no inbox (já na Groq gpt-oss-1
 **Deploy:** zapflix-tech rebuildado, env NVIDIA_API_KEY no wp_zapflix-web, E2E no container: 200 OK 2048 dims.
 
 **Estado do RAG:** stack viva e 100% free (embedding NVIDIA + pgvector local). knowledge_chunks vazia (indexing é on-demand via POST /api/knowledge/documents/[id]/index). RAG ainda NÃO plugado no chatbot (contexto usa recência, não semântica) — fase 2 se desejado.
+
+---
+
+## Sessão 41g (13/09, 01:10) — OpenRouter ativado: rerank free + auto-reply barato
+
+**Key OpenRouter do usuário** configurada em worker (env) e banco (provider do workspace principal).
+
+**Reranker (fase 2 do RAG):**
+- Modelo funcional no OpenRouter: `nvidia/llama-nemotron-rerank-vl-1b-v2:free` (o ID sem :free dá 404 "no endpoints found")
+- `rag.ts`: rerank ativado via env `RAG_RERANK_ENABLED=true` + `OPENROUTER_API_KEY`; recall_k=12 → rerank → top-5. Falha = ordem vetorial original (nunca bloqueia)
+
+**Agente de auto-reply (estava quebrado — OpenAI sem créditos):**
+- Banco: `ai_provider_settings` workspace principal → provider='openrouter', model='openai/gpt-oss-20b' ($0.03/$0.13 por M — testado: resposta limpa em ~1.2s)
+- Com $2/mês: ~20k interações do bot
+- ⚠️ Caveat: gpt-oss-20b não tem visão — análise de imagem degrada até config de modelo vision (OpenAI quebrada de qualquer forma)
+
+**Validado no container worker:** rerank 200 OK (top doc correto, 972ms), chat 200 OK.
+
+**Stack IA final 100% operacional e ~free:** STT Groq (free) · Resumos Groq (free) · SalesBrain Groq (free) · Embeddings NVIDIA (free) · Rerank NVIDIA via OpenRouter (free) · Auto-reply gpt-oss-20b OpenRouter (~$2/mês)

@@ -72,3 +72,10 @@ Como funciona:
 2. **OpenRouter free** (`OPENROUTER_CHAT_API_KEY` do Fabio, modelo `OPENROUTER_CHAT_MODEL=nex-agi/nex-n2.5-pro:free`) — só entra se TODAS as Groq estiverem em 429. Modelo escolhido por teste real com o prompt JSON pt-BR dos insights (único dos 19 free que devolveu JSON válido e correto).
 
 Insights crescendo em produção (0 → 12 na primeira hora). Zero erros de IA nos logs após o deploy.
+
+### Cadeia expandida com chaves da Eluiza (14/09/2026 23:20)
+
+- `GROQ_CHAT_API_KEY_5` (Eluiza) → **5 contas Groq** (~1M TPD combinados)
+- OpenRouter com **rotação multi-chave**: `OPENROUTER_CHAT_API_KEY` (Fabio) + `_2` (Eluiza), cursor próprio — **2 contas OR** de fallback
+- Insights em produção: 22 e crescendo (~10-15 por ciclo de 30min, throttle 25s)
+- Capacidade total estimada: >1.2M tokens/dia antes de esgotar tudo — contenda de cota resolvida

@@ -64,3 +64,11 @@ Como funciona:
 2. Sem o fix, TODOS os insights falhavam com "no unique or exclusion constraint matching the ON CONFLICT specification".
 
 **Validação em produção** (14/09 23h): 1º insight gerado e conferido — negative/support, churn_risk 60, opportunity e next_action acionáveis em pt-BR (caso real de cliente sem acesso). Backlog de ~152 conversas elegíveis será consumido nos ciclos de 30min (25s/conversa ≈ 63min o backlog total).
+
+### Cadeia final de rotação (14/09/2026 23:30)
+
+`groqChatJson()` agora resolve nesta ordem:
+1. **4 contas Groq** (`GROQ_CHAT_API_KEY` + `_2` + `_3` + `_4`) — cursor round-robin, ~800k TPD combinados
+2. **OpenRouter free** (`OPENROUTER_CHAT_API_KEY` do Fabio, modelo `OPENROUTER_CHAT_MODEL=nex-agi/nex-n2.5-pro:free`) — só entra se TODAS as Groq estiverem em 429. Modelo escolhido por teste real com o prompt JSON pt-BR dos insights (único dos 19 free que devolveu JSON válido e correto).
+
+Insights crescendo em produção (0 → 12 na primeira hora). Zero erros de IA nos logs após o deploy.

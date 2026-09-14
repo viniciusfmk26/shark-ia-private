@@ -81,3 +81,14 @@ Novo endpoint **`POST /api/elevenlabs/clone-from-preview`** (`app/api/elevenlabs
 - UI: botão "Clonar esta voz" no TTS panel ao lado de "Ouvir amostra" (aparece só para vozes da Biblioteca, não para vozes já clonadas).
 
 Contexto: Fish via OpenRouter não tem galeria de vozes nem clonagem. Fish oficial (fish.audio) tem — integração futura exige API key própria e créditos (registrada como pendência).
+
+## Galeria de vozes Fish Audio GRÁTIS (14/09/2026 17:30)
+
+Descoberta testada: o endpoint de áudio do OpenRouter (`/api/v1/audio/speech` com `fish-audio/s2.1-pro-free:free`) **aceita `voice: <fish_model_id>`** — testado com a voz "Super Smash Bros Announcer" (audio diferente do baseline, hash distinto). O catálogo fish.audio é público (sem chave): `GET https://api.fish.audio/model?page_size=24&page_number=1&sort=-likes&tag=Portuguese&title=busca`. Filtro por idioma usa tag (`Portuguese`, `English`, `Spanish`...) — o param `language=` NÃO funciona.
+
+Implementação:
+- **`GET /api/fish/voices`** (`app/api/fish/voices/route.ts`): proxy autenticado do catálogo público. Params: `tag`, `title`, `page`, `page_size`, `sort` (allowlist -likes/-created_at/likes). Sem chave fish.audio — o catálogo é público.
+- **`POST /api/automations/generate-audio`**: aceita `fish_voice_id` (regex hex) → repassa como `voice` para o OpenRouter. Válido para geração e fallback.
+- **TTS panel modo Fish**: galeria com chips de idioma (Português default), busca por nome, lista paginada (24/página, "carregar mais"), botão ▶ por voz (gera amostra curta de teste via OpenRouter free, `save:false`) e botão de selecionar (✓).
+- Preview badge mostra o título da voz Fish escolhida.
+- **Clonar ElevenLabs → Fish**: ainda NÃO possível de graça — OpenRouter não expõe clonagem; exige API key fish.audio paga (pendente).

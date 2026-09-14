@@ -1,11 +1,18 @@
 # Studio de Voz — Feature
 
 > Criada em 14/09/2026. Página dedicada em `/studio` para geração de áudio (TTS), gravação por microfone, clonagem de voz e biblioteca de áudios.
+> Atualização 14/09/2026: adicionado preview de voz (amostra audível de cada voz) e seletor de idioma (`language_code`).
 
 ## Localização no menu
 
 Sidebar → **Inteligência Artificial → Studio de Voz** (`/studio`).
 Gate: `roles: owner/admin`, `permissionKey: automations`, `feature: funnels` (mesma feature guard das APIs de áudio).
+
+## Preview de voz + Idioma (14/09/2026)
+
+- **Preview de voz**: `GET /api/elevenlabs/voices` agora retorna `preview_url` (amostra oficial da voz). Botão "Ouvir amostra" no TTS panel toca/pausa a amostra da voz selecionada.
+- **Idioma**: seletor no TTS panel (auto + ~30 idiomas ISO). Enviado como `language_code` no `POST /api/automations/generate-audio`, que valida contra allowlist e só repassa para modelos que suportam (`eleven_turbo_v2_5`, `eleven_flash_v2_5`, `eleven_v3`, `eleven_turbo_v3`). Multilingual v2 detecta sozinho (UI avisa).
+- **Deploy swarm**: descoberto que `docker service update --image zapflix-tech:latest` pode re-resolver a tag para imagem antiga/local obsoleta (container subiu com imagem já deletada `5af2445...`). Fix: sempre deployar com tag única versionada (`docker tag zapflix-tech:latest zapflix-tech:v$(date +%s)` + `docker service update --image zapflix-tech:v<ts>`).
 
 ## Abas
 

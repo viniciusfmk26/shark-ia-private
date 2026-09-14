@@ -68,3 +68,16 @@ Solução:
 - Seletor de voz com grupos rotulados e contagem: "👤 Minhas Vozes (clonadas na conta) — N" (ícone usuário violeta) e "🎙️ Biblioteca ElevenLabs — N" (ícone mic ciano).
 - Preview mostra badge do motor + aviso quando Fish: "voz padrão pt-BR; vozes/modelo/idioma só se aplicam ao ElevenLabs".
 - Motor Fish oculta voz/modelo/idioma/v3 sliders e mostra nota explicativa.
+
+## A/B Comparar + Clonar voz + Importar (14/09/2026 16:30)
+
+Nova aba **Comparar** no Studio (`components/studio/compare-panel.tsx`):
+- **Gerar A/B**: mesmo texto gerado em paralelo nos dois motores — lado A ElevenLabs (voz+modelo escolhidos) e lado B Fish (voz padrão). Players lado a lado.
+- **Importar para Biblioteca**: botão por lado. Nada é salvo automaticamente no comparador — só o escolhido vai pra `automation_media`.
+- API: `POST /api/automations/generate-audio` aceita `save: false` → não grava no S3 nem no banco, retorna só base64 (modo preview p/ comparador).
+
+Novo endpoint **`POST /api/elevenlabs/clone-from-preview`** (`app/api/elevenlabs/clone-from-preview/route.ts`):
+- Body `{voice_id, name?}` → baixa a amostra oficial (`preview_url`) da voz de origem → usa como amostra do Instant Voice Cloning → cria cópia da voz na conta e registra em `elevenlabs_voices` (workspace). Audit: `elevenlabs_voice.cloned_from_preview`.
+- UI: botão "Clonar esta voz" no TTS panel ao lado de "Ouvir amostra" (aparece só para vozes da Biblioteca, não para vozes já clonadas).
+
+Contexto: Fish via OpenRouter não tem galeria de vozes nem clonagem. Fish oficial (fish.audio) tem — integração futura exige API key própria e créditos (registrada como pendência).

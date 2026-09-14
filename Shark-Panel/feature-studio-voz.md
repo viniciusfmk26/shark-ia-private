@@ -92,3 +92,12 @@ Implementação:
 - **TTS panel modo Fish**: galeria com chips de idioma (Português default), busca por nome, lista paginada (24/página, "carregar mais"), botão ▶ por voz (gera amostra curta de teste via OpenRouter free, `save:false`) e botão de selecionar (✓).
 - Preview badge mostra o título da voz Fish escolhida.
 - **Clonar ElevenLabs → Fish**: ainda NÃO possível de graça — OpenRouter não expõe clonagem; exige API key fish.audio paga (pendente).
+
+## Testado: clonagem Fish via OpenRouter NÃO funciona (14/09/2026 18:00)
+
+Pergunta: se o OpenRouter free aceita `voice` (ID de modelo), aceita áudio de referência p/ clonar de graça? Testado empiricamente:
+
+- `references: [{audio: data-uri/base64}]` → HTTP 200 mas **não clona**: pitch da saída não casa com a referência (ref 147Hz→out 200Hz; ref 222Hz→out 139Hz; controle padrão 101-131Hz em 3 execuções). Parâmetro ignorado ou tratado como ruído.
+- `voice: "data:audio/mpeg;base64,..."` → HTTP 400 rejeitado.
+- Conclusão: OpenRouter free = só vozes públicas do catálogo (`voice: <model_id>`). Clonagem exige fish.audio oficial (API key + créditos) ou ElevenLabs IVC (já suportado no Studio).
+- Método do teste: ffmpeg → PCM 16k mono → autocorrelação frame-wise (f0 50-400Hz) via script Node. Não repetir o experimento sem motivo.

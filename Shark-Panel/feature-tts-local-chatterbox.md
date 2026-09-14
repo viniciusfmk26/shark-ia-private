@@ -48,3 +48,19 @@ Como funciona:
 **Verificação em produção** (14/09): função testada direto no container — roda, encontra conversas, chama Groq. Insights não nasceram hoje porque a cota Groq TPD (200k) esgotou antes (199.8k/200k, reset 21:00 BRT). A partir do reset, insights devem nascer nos ciclos de 30min.
 
 **Risco conhecido — disputa de cota**: o SalesBrain principal (autoProcessConversations, 10min, TODOS os 45 workspaces) compete pela mesma cota Groq 200k TPD. Se os insights sumirem por 429 crônico, opções: (a) priorizar insights no horário do reset, (b) reduzir LIMIT do principal, (c) Groq pago.
+
+## Rotação de LLMs free — SalesBrain + Insights (14/09/2026 23:00)
+
+**Problema**: cota Groq única (200k TPD) esgotava antes dos insights rodarem (429).
+
+**Solução implementada** (`background.ts`):
+- `groqChatJson()` com cursor round-robin sobre **3 contas Groq**: env `GROQ_CHAT_API_KEY` (atual) + `GROQ_CHAT_API_KEY_2` + `GROQ_CHAT_API_KEY_3` (~600k TPD combinados). 429 numa conta → tenta a próxima automaticamente; cursor gruda na que funcionou.
+- Ambos os motores usam: `autoProcessConversations` (análise) e `autoProcessSalesBrainInsights` (insights).
+- **Retry 400**: gpt-oss-120b às vezes falha a validação `response_format: json_object` → 1 retry sem response_format com instrução "APENAS JSON puro" no prompt.
+- OpenRouter free avaliado: modelos free clássicos (llama-3.3, deepseek, gpt-oss:free) foram DESCONTINUADOS. Restam 19 free (gemma-4, nemotron-3...) — `nvidia/nemotron-3-super-120b-a12b:free` responde mas JSON veio malformado no teste; **fallback OR fica pendente** até validar qualidade. Com 3 contas Groq não é urgente.
+
+**Bugs corrigidos no caminho**:
+1. `sales_brain_insights`: índice único PARCIAL (`WHERE conversation_id IS NOT NULL`) não satisfaz `ON CONFLICT (conversation_id)` → trocado por índice FULL (NULLs não conflitam). Corrigido no worker E na rota UI (`/api/sales-brain/process`), e o índice recriado em produção (DROP + CREATE).
+2. Sem o fix, TODOS os insights falhavam com "no unique or exclusion constraint matching the ON CONFLICT specification".
+
+**Validação em produção** (14/09 23h): 1º insight gerado e conferido — negative/support, churn_risk 60, opportunity e next_action acionáveis em pt-BR (caso real de cliente sem acesso). Backlog de ~152 conversas elegíveis será consumido nos ciclos de 30min (25s/conversa ≈ 63min o backlog total).

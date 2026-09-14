@@ -57,3 +57,14 @@ app/api/elevenlabs/clone-voice/route.ts                # clonagem workspace
 app/api/elevenlabs/voices/[id]/route.ts                # delete voz
 components/layout/sidebar-nav.tsx                      # item no menu (IA)
 ```
+
+## Motor explícito ElevenLabs vs Fish (14/09/2026 01:30)
+
+Problema: usuário não distinguia as "vozes do Fish" das da ElevenLabs (o Fish não tem lista de vozes — era fallback silencioso).
+
+Solução:
+- **Seletor de motor** no topo do TTS panel: ElevenLabs (todas as vozes/emoção) | Fish Audio (grátis, voz padrão pt-BR).
+- `POST /api/automations/generate-audio` aceita `provider: 'fish'` → gera direto no Fish (sem tocar na ElevenLabs). Fallback automático mantido quando motor=elevenlabs falha, com `message` explícita.
+- Seletor de voz com grupos rotulados e contagem: "👤 Minhas Vozes (clonadas na conta) — N" (ícone usuário violeta) e "🎙️ Biblioteca ElevenLabs — N" (ícone mic ciano).
+- Preview mostra badge do motor + aviso quando Fish: "voz padrão pt-BR; vozes/modelo/idioma só se aplicam ao ElevenLabs".
+- Motor Fish oculta voz/modelo/idioma/v3 sliders e mostra nota explicativa.

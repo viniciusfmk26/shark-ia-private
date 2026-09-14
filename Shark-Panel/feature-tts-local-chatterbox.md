@@ -28,3 +28,23 @@
 3. **OOM 137 no load**: chatterbox multilingual precisa de ~4.7GB RAM residente. Limit 5g OK. Se mover pra outra máquina, mínimo 6g.
 4. **Kill de builds**: `pkill -f "docker build"` mata TODOS os builds (usei e matei 2 de uma vez). Cuidado.
 5. **Swarm image resolution**: continuar usando tag versionada em todo `service update` (padrão já documentado).
+
+---
+
+# Sales Brain Insights — automação (14/09/2026 20:00)
+
+**Problema**: `sales_brain_insights` (síntese IA por conversa: sentiment/intent/opportunity/churn_risk/next_action) tinha 0 registros — o único caminho era o botão manual `POST /api/sales-brain/process` (nunca usado).
+
+**Solução**: `autoProcessSalesBrainInsights()` no worker (`apps/worker/src/handlers/background.ts`), agendada em `worker.ts` a cada 30min (offset 120s pós-boot).
+
+Como funciona:
+- Mesmo motor do autoProcessConversations: Groq free (`GROQ_CHAT_API_KEY`, gpt-oss-120b) → fallback openai/openrouter de `ai_provider_settings`
+- Gate por feature `ai_responses` (`isFeatureEnabled`) — hoje 5 workspaces habilitados de 45
+- Seleção: conversas com mensagem HOJE e insight desatualizado (`processed_at < MAX(messages.created_at)`) — reprocessa só quando chega mensagem nova, LIMIT 15/workspace
+- Mesmo prompt JSON do botão manual (rota UI intocada, continua funcionando com a key OpenAI/OpenRouter do workspace)
+- Upsert ON CONFLICT (conversation_id) + mesmas regras de customer_journey (churn>=70 → 'churned'; buy/renewal → 'closing')
+- Throttle 25s/call + backoff 60s em 429 (mesmo regime TPM do SalesBrain principal)
+
+**Verificação em produção** (14/09): função testada direto no container — roda, encontra conversas, chama Groq. Insights não nasceram hoje porque a cota Groq TPD (200k) esgotou antes (199.8k/200k, reset 21:00 BRT). A partir do reset, insights devem nascer nos ciclos de 30min.
+
+**Risco conhecido — disputa de cota**: o SalesBrain principal (autoProcessConversations, 10min, TODOS os 45 workspaces) compete pela mesma cota Groq 200k TPD. Se os insights sumirem por 429 crônico, opções: (a) priorizar insights no horário do reset, (b) reduzir LIMIT do principal, (c) Groq pago.

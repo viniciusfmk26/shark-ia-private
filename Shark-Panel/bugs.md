@@ -51,6 +51,44 @@ Protege os 12 campos do `AttributionSchema` de uma vez.
 
 ## Bugs ativos
 
+### BUG-2026-09-15 — Workspace novo + número oficial (Cloud API): mensagens não chegam e "não puxa números" ✅ RESOLVIDO (UX)
+
+**Estado:** ✅ Melhoria em produção (deploy `zapflix-tech:latest`, commit `fb76e617`)
+**Severidade:** Média (onboarding travado para novos workspaces com WhatsApp oficial)
+**Causa raiz (2 problemas distintos):**
+
+1. **Mensagens não chegam no inbox** — **não é bug do painel**: a Meta não estava
+   entregando webhooks para o `phone_number_id` novo. Endpoint `/api/webhook/cloud`
+   validado OK (HTTP 200 + challenge com o verify token da instância). O token do
+   App usado não tinha acesso ao WABA (Graph API: `(#100) Missing Permission` em
+   `/me/businesses` e `phone_numbers` edge inexistente) → configurar webhook na Meta
+   (Callback URL + Verify Token + subscribe `messages`) + permissões do app.
+   **Obs.:** `cloud_webhook_verify_token` **já tem** `DEFAULT gen_random_uuid()::text`
+   (migration 126) — criação manual já gera/retorna o token. Não havia bug de token.
+
+2. **"Não puxa as instâncias disponíveis para vincular"** — o endpoint
+   `GET /api/meta-apps/[id]/phone-numbers` engolia os erros de permissão da Graph API
+   e retornava lista vazia com warning genérico. O fluxo depende de:
+   - App Meta cadastrado **no mesmo workspace**; e
+   - Token com `business_management` / `whatsapp_business_management` OU `business_id`
+     salvo no cadastro do app.
+
+**Fix aplicado (commit `fb76e617`):**
+- `app/api/meta-apps/[id]/phone-numbers/route.ts`: captura erros reais da Graph API
+  em `meta_errors` (businesses / WABAs / phone_numbers) e warning com a ação correta
+  (informar Business ID; habilitar permissões no App Meta; alternativa Manual).
+- `app/(dashboard)/whatsapp-instances/page.tsx`: exibe `meta_errors` com quebra de
+  linha no dialog "Conectar via API Oficial".
+- `MANUS.md` (symlink absoluto do host) removido da raiz — quebrava o `next build`
+  dentro do container Docker (`ENOENT /app/MANUS.md`). Doc viva continua em `manus/MANUS.md`.
+
+**Lições:**
+1. Diagnosticar Cloud API SEMPRE contra a Graph API com o token real antes de mexer no painel.
+2. `/me/businesses` sem `business_management` = lista vazia inevitável → UX precisa dizer isso.
+3. Symlinks com caminho absoluto do host **não podem** ser commitados (quebram clone + Docker).
+
+---
+
 ### BUG-001 — handleSyncContacts atualiza contatos cross-tenant
 
 **Arquivo:** `apps/worker/src/worker.ts` (função `handleSyncContacts`)

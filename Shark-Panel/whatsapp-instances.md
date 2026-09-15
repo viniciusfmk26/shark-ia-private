@@ -210,3 +210,22 @@ WHERE workspace_id = '00000000-0000-0000-0000-000000000002'
 - **D-WA-003** — `Bruninhahh` órfã: marcada `is_payment_confirmation=true` mas desconectada há tempo. Decidir: desmarcar ou reconectar.
 
 Todos em [[../Empresa/débitos]].
+
+---
+
+## Onboarding Cloud API oficial (Meta) — requisitos e diagnósticos (2026-09-15)
+
+Fluxo de conexão de número **oficial** (WhatsApp Cloud API da Meta) em um workspace novo:
+
+| Etapa | Onde | Dependência |
+|---|---|---|
+| 1. Cadastrar App Meta | Instâncias → "Cadastrar App" | Token permanente válido (`/me` OK) |
+| 2. "Buscar números disponíveis" | Dialog "Conectar via API Oficial" | App no **mesmo workspace** + token com `business_management`/`whatsapp_business_management` **OU** `business_id` salvo no app |
+| 3. Conectar número | Escolher app + número (ou Manual) | `provider='cloud_api'` nasce `connected`; `cloud_webhook_verify_token` **gerado por DEFAULT** (`gen_random_uuid()`, migration 126) |
+| 4. Receber mensagens | Webhook Meta → `/api/webhook/cloud` | Meta: Callback URL + Verify Token + subscribe `messages`; token do app COM acesso ao WABA |
+
+**Regras práticas:**
+- **Sem `business_management`** no token → `/me/businesses` falha com `(#100) Missing Permission` e a listagem de números é vazia. Salvar `business_id` no app destrava (via `owned/client_whatsapp_business_accounts`), mas o token ainda precisa acessar o WABA.
+- **Verify token burro:** se a criação manual não devolve token, checar se a migration 126 foi aplicada (`column_default` = `gen_random_uuid()::text`). O INSERT sem a coluna aplica o DEFAULT e o `RETURNING *` entrega o token.
+- **Diagnóstico rápido de mensagens que não chegam:** contar `webhook_logs`/`processed_events`/`messages` do workspace; se zero, o problema é Meta-side (webhook não configurado / app sem acesso ao WABA), não do painel.
+- **Endpoint de listagem** devolve `meta_errors` desde `fb76e617` — usar no troubleshooting em vez de warning genérico.

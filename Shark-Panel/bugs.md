@@ -51,6 +51,32 @@ Protege os 12 campos do `AttributionSchema` de uma vez.
 
 ## Bugs ativos
 
+### BUG-2026-09-15-B — IDs Cloud trocados na instância Marlene SK + test number 555 ✅ CORRIGIDO (banco)
+
+**Estado:** ✅ Corrigido em produção (UPDATE 15/09/2026)
+**Sintoma:** webhook nunca achava a instância; Graph API dava `nonexisting field`; nenhuma mensagem chegava.
+
+**Causa raiz:** na instância `Marlene SK` (`592a997c-...`), `cloud_phone_number_id` e `cloud_waba_id` estavam **trocados**:
+- `1608150587414256` é o **WABA ID** (consta como phone_number_id ❌)
+- `1301714919693027` é o **phone_number_id do test number +1 555...** (constava como waba_id ❌)
+
+**Correção aplicada (UPDATE):**
+```
+cloud_phone_number_id = '1280333835166476'   -- número REAL +55 22 99875-4276
+cloud_waba_id         = '1608150587414256'   -- WABA
+phone_number          = '+55 22 99875-4276'
+```
+
+**Descoberta chave:** o WABA `1608150587414256` tem **2 phone numbers**:
+- `1301714919693027` → **+1 555-365-4520** = *test number* (sandbox, não recebe msg de clientes reais)
+- `1280333835166476` → **+55 22 99875-4276** = número real verificado (é o que deve ser usado)
+
+A Meta gera o 555 automaticamente ao criar o WABA; a empresa verificada tem o número real já cadastrado.
+
+**Lição:** ao criar instância Cloud API, conferir na Graph API `GET /{waba_id}/phone_numbers?fields=id,display_phone_number` e escolher o número REAL (nunca prefixo 555).
+
+---
+
 ### BUG-2026-09-15 — Workspace novo + número oficial (Cloud API): mensagens não chegam e "não puxa números" ✅ RESOLVIDO (UX)
 
 **Estado:** ✅ Melhoria em produção (deploy `zapflix-tech:latest`, commit `fb76e617`)

@@ -79,3 +79,13 @@ Insights crescendo em produção (0 → 12 na primeira hora). Zero erros de IA n
 - OpenRouter com **rotação multi-chave**: `OPENROUTER_CHAT_API_KEY` (Fabio) + `_2` (Eluiza), cursor próprio — **2 contas OR** de fallback
 - Insights em produção: 22 e crescendo (~10-15 por ciclo de 30min, throttle 25s)
 - Capacidade total estimada: >1.2M tokens/dia antes de esgotar tudo — contenda de cota resolvida
+
+## Voz do agente: seletor, preview, modelo OR + toggle modo voz (14/09/2026 24:00)
+
+Cadeia de voz do agente já existia (agent.voice_id → workspace default → primeira voz de elevenlabs_voices). Melhorias entregues:
+
+1. **Toggle modo voz no Inbox** (`chat-view.tsx` + `PATCH/GET /api/inbox/conversations/[id]/voice-mode`): botão 🔊/🔇 ao lado do seletor de modo IA. Liga/desliga `conversations.voice_mode` por conversa (antes: só comandos do cliente no WhatsApp como "modo voz"). Desabilitado se modo IA off.
+2. **Seletor de voz do agente** (`agent-wizard.tsx`): vozes agrupadas com rótulos (👤 Minhas Vozes clonadas / 🎙️ Biblioteca ElevenLabs) + botão "Ouvir amostra" (preview_url da voz selecionada) + voz selecionada destacada no topo.
+3. **Modelo por agente via OpenRouter**: wizard ganhou grupo OpenRouter no seletor de modelo (gpt-oss-120b, nex-n2.5-pro:free, gemma-4-31b:free, nemotron-3-super:free). Worker (`ai.ts` nos 2 call sites): se `agent.model` contém `/` (formato provider/modelo) E workspace tem chave OpenRouter → roteia via OR independente do provider padrão; senão mantém comportamento anterior.
+
+Nota: as vozes do agente são SEMPRE ElevenLabs (com fallback Fish quando a EL falha). Vozes Fish/Chatterbox não se aplicam ao modo voz do agente — cadeia TTS do worker é EL→Fish por key, não por voice_id Fish.

@@ -7,6 +7,7 @@
 - `deep-funnels.md` → funis guiados
 - `deep-ia.md` → IA autônoma e copiloto
 - `deep-knowledge.md` → base de conhecimento / RAG
+- `deep-prospeccao.md` → Radar, Operação de Prospecção e Prospecção rápida (SDR B2B)
 - `deep-sales-brain.md` → Sales Brain (análise de conversas)
 - `deep-webchat-recorrencia.md` → webchat e recorrência
 

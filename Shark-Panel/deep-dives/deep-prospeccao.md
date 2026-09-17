@@ -117,11 +117,45 @@ apps/worker/src/lib/lead-context.ts             → injeta "EMPRESA PROSPECTADA"
 - **Chave solta escapa da validação de variável:** `{{` sozinho não casa com o regex de token (`{{nome}}`), então passaria por `unknownLeadVars` e chegaria **literal no WhatsApp do cliente**. Por isso existe `hasBrokenLeadVarSyntax`, checado na tela **e** na rota.
 - **`{{nome}}` em campanha sem Operação:** o dispatch aborta com 400 `lead_vars_unavailable` (não há de onde tirar o nome). Antes desta entrega o token ia literal para o cliente.
 
+## 17/09/2026 (noite) — dois achados do primeiro uso real (commit `414d07a3`)
+
+O dono usou a tela rápida em produção e reportou dois problemas. **Nenhum era disparo quebrado** — os dois eram defeito de tela.
+
+### 1. "Fiz um disparo e não apareceu o que mandei no inbox"
+
+**Nada se perdeu.** Disparo feito 17/09 às **18h18**; a janela da Operação é **9h–18h**, e o `dispatch_run_at()` (Postgres, `America/Sao_Paulo`) empurra o lote para a próxima abertura ⇒ a mensagem foi agendada para **18/09 às 09:00**. Diagnóstico do dado real: Operação `e35cdf7a-…` (`running`), campanha `9c7b530a-…` (`sending`, 1 destinatário, 0 enviados), job `e537cccf-…` **`queued`** com `run_at = 2026-09-18 09:00:00-03`, conversa `c27efdb5-…` criada e **vazia**.
+
+O comportamento está **correto**; o defeito era a tela dizer "Disparo iniciado" e não avisar. Correção:
+
+- **Antes do clique:** `lib/prospect-quick/send-window.ts` (`describeSendWindow`, puro, roda no cliente) — relógio de `America/Sao_Paulo` via `Intl` (nunca `getUTCHours() - 3`, o bug já catalogado em `media.ts`). O passo de confirmação mostra "Fora da janela de envio (9h às 18h) … a 1ª mensagem sai amanhã (18/09) às 09:00".
+- **Depois do clique:** a rota devolve `first_send_at` = `MIN(run_at)` do 1º job `send_message` `queued` da campanha — **fonte autoritativa**, não uma regra de janela duplicada no cliente. Só vira aviso quando o horário está **>5 min no futuro** (dentro da janela o job sai em segundos). Falha na leitura não derruba o lançamento (campo informativo).
+- Teste: `test/prospect-quick-send-window.test.ts` (8 casos: bordas 09:00/18:00, madrugada, virada de mês, o caso real 18h18 e o fuso — 21h BRT = 00h UTC do dia seguinte).
+
+### 2. "Está buscando com site e leads frios; na engine anterior conseguíamos leads quentes"
+
+A tela rápida havia perdido duas coisas que o Radar antigo tinha (`app/(dashboard)/admin/prospect-radar/page.tsx`):
+
+- **Filtros:** a rota `GET /api/admin/prospect-radar/google` sempre aceitou `website=any|missing|present` e `min_score` (defaults `any`/`0`), mas a tela rápida mandava os defaults. Agora tem **Presença de site** (default **"Só quem NÃO tem site"** = `missing`) e **Score mínimo**.
+- **O score era jogado fora:** `preliminaryScore`/`preliminaryLabel` vinham do servidor desde sempre e não apareciam. Cada linha agora mostra `Alta 75/100` (sem site = **+55** em `scorePreliminaryPlace`). A lista **já vinha ordenada** por score — só não dizia.
+- **Efeito colateral conhecido:** o filtro é aplicado **depois** do fetch do Google (não há como pedir "40 sem site"), então "só sem site" pode devolver menos linhas que a quantidade pedida. A lista vazia agora distingue "faça uma busca acima" de "a busca não trouxe nada com esses filtros" (`searched`).
+
+### 3. Dado real corrigido de passagem
+
+`salutation_name` sugerido para "Dra. Gabrielle Carvalho **Fisioterapeuta Pélvica**" saiu **"Gabrielle Carvalho Pélvica"** — a heurística tratava "Pélvica" como sobrenome. `ROLE_WORDS` (`lib/prospect-quick/salutation.ts`) ganhou a família de adjetivos de especialidade (pélvica, ortopédica, dermatológica, ginecológica, obstétrica, urológica, oncológica, capilar, facial, corporal, postural, respiratória, esportiva, infantil, geriátrica, funcional, estética…) ⇒ **"Gabrielle Carvalho"**. Caso real virou teste.
+
+### Verificação e deploy
+
+- `tsc` web = 0; 36 testes novos/afetados verdes; suíte completa **sem regressão** (mesmas 6 suites / 2 testes pré-existentes: módulo de Client Component em campaigns/checkout/settings/webhooks/resellers-withdraw e `inbox.test.ts`).
+- **Nenhuma migration** nesta rodada. Commit `414d07a3` → push (worker redeployou, 8/8 chaves repostas) → build de clone limpo → `wp_zapflix-web` convergiu → `/api/version` = **`414d07a3`** (build_time 2026-09-17T21:40:36Z).
+- Rotas conferidas: `GET /admin/prospect-quick` = 307, `POST /api/admin/prospect-quick/launch` = 401, `GET /api/admin/prospect-radar/google` = 401 (sem sessão). Log do web sem erro novo.
+
 ## Pendências / próximos
 
 - Outras variáveis na tela rápida (`{{empresa}}`, `{{cidade}}`, `{{nicho}}`, `{{dor}}`) — o plano E3 previa todas; o dono aprovou entregar só `{{nome}}` primeiro (é o que muda o tom da 1ª frase). O motor em `lib/campaigns/lead-vars.ts` já está pronto para receber mais.
 - Aviso (não bloqueio) de opt-out/origem no **wizard** (parte do E3 que ficou fora desta fatia; a tela rápida já tem o checkbox de ciência de opt-in no modal).
 - Retorno agendado ("me chama depois") — WIP em `apps/worker/src/lib/return-time-parse.ts` + `migrations/20260921_agent_followup_scheduling.sql` (ainda **não** aplicada/commitada).
-- `dispatch_run_at` ignorando fim de semana.
+- `dispatch_run_at` ignorando fim de semana (continua; agora pelo menos a tela avisa o horário real).
+- **Aviso pós-disparo ✅ resolvido em 17/09 (commit `414d07a3`)** — o modal mostra `first_send_at` lido do job.
+- **Filtros de lead quente ✅ resolvido em 17/09 (commit `414d07a3`)** — Presença de site (default sem site) + score visível na lista.
 
 Especificação completa do módulo: `docs/PROSPECCAO.md` e `docs/PLANO-FUNIL-SDR-B2B.md` no repositório.

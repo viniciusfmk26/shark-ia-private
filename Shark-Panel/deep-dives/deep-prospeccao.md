@@ -30,6 +30,8 @@ Tela única que substitui o fluxo de ~10 passos: **buscar → marcar → escreve
 - **Idempotência (duplo clique):** `prospect_operations.client_request_id` + índice único parcial `uq_prospect_operations_client_request` (`migrations/20260921_prospect_quick_launch.sql`). O segundo clique devolve `{ok:true, already_launched:true}` — sem criar uma segunda operação.
 - **Falha do start não perde o trabalho:** a rota devolve 200 `{ok:false, operation_id, list_id, advanced_url}`. As empresas ficam salvas e **nenhuma mensagem** foi enviada; o operador segue pelo modo avançado.
 - **Auditoria preservada:** override sem opt-in continua gravando `manual_override_no_optin/_user_id/_at` + evento por lead, agora com `source:'quick_launch'` e `acknowledged_checkbox:true`.
+- **Site clicável na lista (17/09/2026, commit `75bfee42`):** o selo "tem site" virou link para `websiteUri` (dado que já vinha na busca em `GooglePlacePreview`) abrindo em **aba nova** — na mesma aba o operador perderia a busca e as seleções. Valor tratado por `lib/utils/url.ts` → `safeExternalUrl` (só http/https; `javascript:` / `data:` / `mailto:` caem para texto morto), com teste em `test/url.test.ts`.
+  - ⚠️ Produto: muito "site" de empresa local no Google é na verdade **Instagram/Facebook**. Isso muda o argumento da abordagem (rede social = "não tem site de verdade").
 
 ### Limites da v1
 

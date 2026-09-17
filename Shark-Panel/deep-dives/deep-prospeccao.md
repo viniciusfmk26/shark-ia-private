@@ -149,6 +149,27 @@ A tela rápida havia perdido duas coisas que o Radar antigo tinha (`app/(dashboa
 - **Nenhuma migration** nesta rodada. Commit `414d07a3` → push (worker redeployou, 8/8 chaves repostas) → build de clone limpo → `wp_zapflix-web` convergiu → `/api/version` = **`414d07a3`** (build_time 2026-09-17T21:40:36Z).
 - Rotas conferidas: `GET /admin/prospect-quick` = 307, `POST /api/admin/prospect-quick/launch` = 401, `GET /api/admin/prospect-radar/google` = 401 (sem sessão). Log do web sem erro novo.
 
+## 17/09/2026 (noite, 2) — inbox mostrava "conversa fantasma" do disparo agendado (commit `5fde5f1a`)
+
+Logo depois do primeiro disparo: "abriu a conversa dela no inbox mas eu não mandei nada". A mecânica está **certa** (a conversa nasce no agendamento, a mensagem só nasce no envio — e o lote caiu para 18/09 09:00), mas a conversa era criada com `last_message_at = NOW()` e `last_message_from_me = false` (default) — **fingindo atividade**: aparecia no **topo** da lista com prévia vazia e com a tarja **"⏳ aguardando"** contando desde a criação (chegou a 3h em vermelho).
+
+**O que NÃO acontecia** (conferido, não presumido): badge de não-lidas intacto, janela 24h do WhatsApp intacta (ela olha mensagens, não a conversa) e o winback do worker não captura essas conversas (`last_message_from_me = false AND last_message_at > NOW() - 24h` → com NULL falha fechado).
+
+**Correção (opção A, escolhida pelo dono):** a conversa nasce "sem ninguém ter falado" (`NULL`/`NULL`; o worker carimba no envio real, em `apps/worker/src/handlers/media.ts`) e o inbox passa a **explicar** o agendamento:
+
+- `lib/inbox/scheduled-send.ts` (novo, puro): "hoje às 09:00" / "amanhã às 09:00" / "18/09 às 09:00", dia decidido em `America/Sao_Paulo` (+6 testes).
+- `lib/server/inbox.ts`: LATERAL devolve `scheduled_send_at` = `MIN(run_at)` do job `send_message` **queued com >5 min de folga** (sem o corte, um lote disparando agora piscaria o selo em todas as conversas). Usa `idx_jobs_queue`, **0,2 ms** medidos.
+- Lista: prévia vira "🕐 Agendada para amanhã às 09:00"; thread vazia explica o agendamento em vez de "envie uma mensagem".
+- ⚠️ `lastMessageTime` virou `string | null` **de propósito** — o `tsc` apontou os 4 consumidores que assumiam horário presente (SLA de 15 min, filtro "Sem resposta", dedup por telefone, `StateSlot`) e cada um ganhou tratamento explícito; `new Date(null)` = 1970 virava "01/01".
+- ⚠️ `lastMessageFromMe` não colapsa mais `null → false`: a tarja "aguardando" testa `=== false`, e "ninguém falou" ≠ "o cliente está esperando".
+- ⚠️ Paginação: se a página termina numa conversa sem horário (elas ordenam por último), `hasMore = false` — cursor nulo viraria `cursor=null` e derrubaria o cast no Postgres.
+- **Dado real corrigido:** a única conversa nesse estado (a da Dra. Gabrielle) foi ajustada à mão (`UPDATE` de 1 linha, com guarda `NOT EXISTS (messages)`); o agendamento de 18/09 09:00 segue intacto.
+- **Validação:** o SELECT inteiro do `getConversations` foi remontado com os mesmos fragmentos e rodado no Postgres de produção **antes** do deploy (exit 0); para a conversa dela, `scheduled_send_at = 2026-09-18 09:00:00-03`.
+
+**Deploy:** commit `5fde5f1a` → push (worker redeployou, 8/8 chaves repostas) → build de clone limpo → `/api/version` = `5fde5f1a` (build_time 2026-09-17T22:27:15Z). Rotas conferidas de dentro do container (a app escuta na **porta 80**, `PORT=80`): `/api/version` 200, `/admin/prospect-quick` 307→login, `/admin/inbox` 307→login, `/api/inbox/conversations` 401, `/api/admin/prospect-quick/launch` 401, `/api/admin/prospect-radar/google` 401. Log do web/worker sem erro novo.
+
+⚠️ **Sintoma irmão não corrigido:** `apps/worker/src/handlers/background.ts:1655` (fluxo de cobrança/pedido) cria conversa sem esses dois campos e herda `now()`/`false` — mesmo defeito em potencial, precisa de análise própria.
+
 ## Pendências / próximos
 
 - Outras variáveis na tela rápida (`{{empresa}}`, `{{cidade}}`, `{{nicho}}`, `{{dor}}`) — o plano E3 previa todas; o dono aprovou entregar só `{{nome}}` primeiro (é o que muda o tom da 1ª frase). O motor em `lib/campaigns/lead-vars.ts` já está pronto para receber mais.
@@ -157,5 +178,7 @@ A tela rápida havia perdido duas coisas que o Radar antigo tinha (`app/(dashboa
 - `dispatch_run_at` ignorando fim de semana (continua; agora pelo menos a tela avisa o horário real).
 - **Aviso pós-disparo ✅ resolvido em 17/09 (commit `414d07a3`)** — o modal mostra `first_send_at` lido do job.
 - **Filtros de lead quente ✅ resolvido em 17/09 (commit `414d07a3`)** — Presença de site (default sem site) + score visível na lista.
+- **Conversa agendada mostrando "aguardando" ✅ resolvido em 17/09 (commit `5fde5f1a`)** — conversa nasce sem atividade e o inbox mostra "Agendada para …".
+- **Linha antiga corrigida à mão ✅** — a conversa da Dra. Gabrielle teve `last_message_at`/`last_message_from_me` zerados; `salutation_name` **ainda** está `'Gabrielle Carvalho Pélvica'` na operação em produção (código corrigido, dado não).
 
 Especificação completa do módulo: `docs/PROSPECCAO.md` e `docs/PLANO-FUNIL-SDR-B2B.md` no repositório.

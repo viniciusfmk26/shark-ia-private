@@ -893,3 +893,25 @@ Severidade média porque já é protegido por `ROTATION_API_KEY` (serviço exter
 **Abordagem escolhida:** Refatorar Inbox + Sidebar com layout responsivo de verdade (Tailwind breakpoints)
 **Estimativa:** 1-2 dias de Claude Code
 **Decisão:** Fazer em sessão própria, após primeira venda do Zapflix
+
+---
+
+## BUG — Conversa "fantasma" no inbox do disparo agendado — 2026-09-17 ✅ CORRIGIDO
+
+**Arquivo/Serviço:** `lib/campaigns/dispatch.ts` (web) → `lib/server/inbox.ts`, `components/inbox/*`
+**Severidade:** Média (engana o operador; sem efeito em envio/entrega)
+**Identificado em:** 17/09/2026, pelo dono, logo após o 1º disparo real
+**Fix:** commit `5fde5f1a` (deploy verificado, `/api/version` = `5fde5f1a`)
+
+**Descrição:** ao agendar um lote fora da janela (9h–18h), a conversa era criada no inbox **sem nenhuma mensagem** — o que é correto — mas com `last_message_at = NOW()` e `last_message_from_me = false` (default da coluna). Resultado: a conversa aparecia **no topo** da lista com prévia vazia e com a tarja **"⏳ aguardando"**, como se o cliente tivesse falado por último, contando o tempo desde a criação.
+
+**Impacto:** confusão do operador ("abriu a conversa dela mas não mandei nada"), conversa no topo sem histórico e tarja de espera falsa. **Não** inflava não-lidas, **não** afetava a janela de 24h do WhatsApp e **não** era capturada pelo winback do worker (falha fechado com NULL).
+
+**Como reproduzir:**
+1. Lançar um disparo depois das 18h (cai para o dia seguinte às 09:00).
+2. Abrir o inbox antes do envio: a conversa está no topo com prévia vazia e tarja "aguardando".
+3. `SELECT last_message_at, last_message_from_me FROM conversations WHERE id='<conv>';` → horário da criação e `f`.
+
+**Fix aplicado:** conversa nasce com `last_message_at = NULL` e `last_message_from_me = NULL` (o worker carimba no envio real) → vai para o fim da lista (`NULLS LAST`); o inbox mostra o selo **"Agendada para amanhã às 09:00"** (`lib/inbox/scheduled-send.ts` + `MIN(run_at)` do job `send_message` queued com >5 min). `Conversation.lastMessageTime` passou a `string | null` e os 4 consumidores que assumiam horário presente tratam o nulo. Detalhes na deep-dive: `deep-dives/deep-prospeccao.md`.
+
+**Sintoma irmão ainda aberto:** `apps/worker/src/handlers/background.ts:1655` (fluxo de cobrança/pedido) cria conversa com os defaults `now()`/`false` — mesmo defeito em potencial, não corrigido (precisa de análise própria).

@@ -1,6 +1,6 @@
 # Deep Dive — Prospecção (Radar, Operação e Prospecção rápida)
 
-> Última atualização: 17/09/2026 — entregue a tela **Prospecção rápida** (commit `51f0b9fd`, web em produção `51f0b9f`).
+> Última atualização: 18/09/2026 — **atendente por número** (`{{atendente}}` no 1º contato e na IA, commit `5d9f02ba`, worker+web em produção) e fechamento dos 4 pontos do 1º disparo real.
 
 ## Visão geral do módulo
 
@@ -36,15 +36,15 @@ Tela única que substitui o fluxo de ~10 passos: **buscar → marcar → escreve
 ### Limites da v1
 
 - Máximo de **40 empresas** por lançamento (`too_many_places`).
-- Em texto livre só **`{{nome}}`** é aceito (ver seção seguinte); qualquer outra variável ou chave solta = `variables_not_supported`.
+- Em texto livre só **`{{nome}}`** e **`{{atendente}}`** são aceitos (ver seções seguintes); qualquer outra variável ou chave solta = `variables_not_supported`.
 - Canal `cloud_api` exige **template aprovado**.
 - Os trilhos **nunca vêm do cliente**: a rota usa sempre `PROSPECT_SAFE_DEFAULTS`, `allow_recontact:false` e `batch_auto_advance:false`.
 
 ## "Como chamar" por empresa — `{{nome}}` no 1º contato (17/09/2026)
 
-Pedido do dono: personalizar o primeiro contato sem parecer robótico — "Oi, Franciele Valeron!" em vez de "Oi! Aqui é a Julia". Ele escolheu entre duas opções a de **pré-preenchido + revisão humana** (não campo em branco, não IA escrevendo o texto).
+Pedido do dono: personalizar o primeiro contato sem parecer robótico — "Oi, Franciele Valeron!" em vez de "Oi! Aqui é a Julia". Ele escolheu entre duas opções a de **pré-preenchido + revisão humana** (não campo em branco, não IA escrevendo o texto). (A partir de 18/09 existe também `{{atendente}}` — o nome de quem atende o número; ver a seção do fim deste arquivo.)
 
-- **Coluna "Como chamar" na lista** (`components/prospect-quick/results-table.tsx`): aparece **só quando a mensagem usa `{{nome}}`**, uma linha por empresa **marcada**. Botão **"+ nome"** na caixa de mensagem insere o token no cursor; a caixa mostra a **prévia da frase final** do primeiro contato já preenchido.
+- **Coluna "Como chamar" na lista** (`components/prospect-quick/results-table.tsx`): aparece **só quando a mensagem usa `{{nome}}`**, uma linha por empresa **marcada**. Botão **"+ nome"** na caixa de mensagem insere o token no cursor; a caixa mostra a **prévia da frase final** do primeiro contato já preenchido. O botão **"+ atendente"** tem o mesmo comportamento para `{{atendente}}`.
 - **Pré-preenchimento determinístico, sem LLM** (`lib/prospect-quick/salutation.ts` → `suggestSalutationInfo`): corta o nome do negócio em segmentos (`|`, `/`, `,`, `-`, travessões), remove título e profissão ("Dra.", "Nutricionista", "Pediátrica", "em Pelotas") e devolve o primeiro segmento que parece **nome de pessoa**. Se não achar (marca/loja), devolve o primeiro segmento como veio e marca `personName:false` — a lista mostra **"confira"** em âmbar. Nunca devolve vazio; corta em 80 caracteres.
   - Validado contra os **6 resultados reais** da busca "nutricionista em Pelotas" do dono: 6/6 corretos.
   - Motivo de não usar IA aqui: é instantâneo para 40 linhas, não gasta chamada de API e não alucina. O operador revisa por cima.
@@ -77,7 +77,9 @@ app/api/admin/prospect-quick/launch/route.ts    → orquestração (import+lista
 types/prospect-quick.ts                         → contrato da rota
 lib/prospect-quick/screen.ts                    → triagem pura (preselect/blockReason)
 lib/prospect-quick/salutation.ts                → sugestão determinística de "Como chamar"
-lib/campaigns/lead-vars.ts                      → engine do {{nome}} (puro)
+lib/instances/attendant-name.ts                 → nome de quem atende (web; gêmeo no worker)
+lib/campaigns/lead-vars.ts                      → engine das variáveis {{nome}}/{{atendente}} (puro)
+apps/worker/src/lib/attendant-name.ts           → gêmeo + applyAttendantToPrompt ({{atendente}} na IA)
 lib/campaigns/lead-context.ts                   → lead_context + buildSalutationMap
 lib/prospect-operations/                        → core, create, lists, start,
                                                   safety-rails, contact-history
@@ -114,8 +116,9 @@ apps/worker/src/lib/lead-context.ts             → injeta "EMPRESA PROSPECTADA"
 - **Auditoria "não medido" ≠ "não tem":** widget de chat ausente/NULL nunca é tratado como ausência confirmada.
 - **Env do worker cai no redeploy:** `GROQ_API_KEY*` e `NVIDIA_API_KEY` adicionadas por `docker service update --env-add` são apagadas quando o Easypanel redeploya — precisam estar cadastradas na UI.
 - **`eligibility` tem CHECK FECHADO em 6 valores** (`eligible`, `blocked_no_phone`, `blocked_no_optin`, `blocked_suppressed`, `blocked_duplicate`, `blocked_already_contacted`) e é lido pelo wizard, pelo `summary` e pelo start. **Não** criar valor novo para "lead sem nome" sem revisar os três — por isso a falta de "Como chamar" é recusada **antes** de criar a Operação (`missing_salutation`) + garantia no dispatch.
-- **Chave solta escapa da validação de variável:** `{{` sozinho não casa com o regex de token (`{{nome}}`), então passaria por `unknownLeadVars` e chegaria **literal no WhatsApp do cliente**. Por isso existe `hasBrokenLeadVarSyntax`, checado na tela **e** na rota.
+- **Chave solta escapa da validação de variável:** `{{` sozinho não casa com o regex de token (`{{nome}}`/`{{atendente}}`), então passaria por `unknownLeadVars` e chegaria **literal no WhatsApp do cliente**. Por isso existe `hasBrokenLeadVarSyntax`, checado na tela **e** na rota. (Ela tira **todo** token bem formado antes de procurar chave solta — antes só `{{nome}}`, então `{{atendente}}` era acusado de "chave sobrando".)
 - **`{{nome}}` em campanha sem Operação:** o dispatch aborta com 400 `lead_vars_unavailable` (não há de onde tirar o nome). Antes desta entrega o token ia literal para o cliente.
+- **Gate do dispatch é "tem qualquer token", não "tem `{{nome}}":** o bloco de resolução roda para qualquer variável, então um `{{cidade}}` que entrou por wizard/API (que não passa pela tela rápida) falha o destinatário em vez de vazar o token. Não afrouxar esse gate.
 
 ## 17/09/2026 (noite) — dois achados do primeiro uso real (commit `414d07a3`)
 
@@ -174,7 +177,7 @@ Logo depois do primeiro disparo: "abriu a conversa dela no inbox mas eu não man
 
 1. **`salutation_name` da linha real corrigido.** `prospect_operation_leads cdcc4fe4-…` foi de `'Gabrielle Carvalho Pélvica'` para `'Gabrielle Carvalho'` (1 linha, guardado pelo valor antigo). Era a única das 5 linhas da operação com valor suspeito. ⚠️ **Impacto na mensagem enviada = zero**: o texto da campanha **não usa `{{nome}}`** (conferido no payload do job agendado, não presumido) — a correção vale para as próximas campanhas que usarem a variável. Função validada contra os 5 nomes reais: "Daiane Nogueira - Nutricionista" → Daiane Nogueira, "Nutricionista Andressa Mello" → Andressa Mello, "Nutricionista Sabrina Ribes Zibetti" → Sabrina Ribes Zibetti, "Nutricionista Stéfani Biavaschi" → Stéfani Biavaschi. Limitação conhecida e **não** corrigida (não há caso real nos 25 leads do radar): prefixo de estabelecimento antes de honorífico, ex. "Clínica Dra. Ana Paula Souza - Dermatologia" → "Clínica Dra. Ana Paula Souza".
 
-2. **Identidade do chip ≠ persona — decisão do dono pendente.** Lido direto da Evolution API (read-only): chip da operação `e6e1c0f8-…` (descrição "Cubot2") = número `555391440074` com **profileName "Larissa Mendes"**; chip de disparo `31cdcb01-…` = `555381004072`, **"Gabriele Garcia" no painel mas profileName "Kerolayne Gonzaga"**. A persona do produto é **Julia** (`ai_agents.name = "Julia (Amigo por Voz)"`, cloud_api "Julia Abreu"/"Julia Abreu Suporte", mensagem "Aqui é a Julia, da Ambern"). **Efeito:** o lead vê "Larissa Mendes" na notificação e lê "Aqui é a Julia". Renomear perfil é ação externa visível em chip que pode ser de pessoa real → **não executado**. Alternativa do lado do código: `DEFAULT_MESSAGE` em `app/(dashboard)/admin/prospect-quick/page.tsx`.
+2. **Identidade do chip ≠ persona — resolvido em 18/09 pela diretriz "atendente por número".** Lido direto da Evolution API (read-only): chip da operação `e6e1c0f8-…` (descrição "Cubot2") = número `555391440074` com **profileName "Larissa Mendes"**; chip de disparo `31cdcb01-…` = `555381004072`, **"Gabriele Garcia" no painel mas profileName "Kerolayne Gonzaga"**. A persona do produto era **Julia** fixa (`ai_agents.name = "Julia (Amigo por Voz)"`, cloud_api "Julia Abreu"/"Julia Abreu Suporte", mensagem "Aqui é a Julia, da Ambern"). **Efeito:** o lead via "Larissa Mendes" na notificação e lia "Aqui é a Julia". Decisão do dono: não renomear perfil de chip (é identidade de pessoa real e ação externa visível) — o **texto e o agente passam a usar o nome da instância** (`whatsapp_instances.name`). Ver a seção "Atendente por número" abaixo.
 
 3. **Varredura do "mesmo padrão" nos 14 `INSERT INTO conversations`:** alarme falso, nenhum código novo tocado. Ver o bloco acima (0 conversas no estado fantasma em produção; `auto-campaigns` nasce `closed` de propósito).
 
@@ -182,16 +185,55 @@ Logo depois do primeiro disparo: "abriu a conversa dela no inbox mas eu não man
 
 ## Pendências / próximos
 
-- Outras variáveis na tela rápida (`{{empresa}}`, `{{cidade}}`, `{{nicho}}`, `{{dor}}`) — o plano E3 previa todas; o dono aprovou entregar só `{{nome}}` primeiro (é o que muda o tom da 1ª frase). O motor em `lib/campaigns/lead-vars.ts` já está pronto para receber mais.
+- Outras variáveis na tela rápida (`{{empresa}}`, `{{cidade}}`, `{{nicho}}`, `{{dor}}`) — o plano E3 previa todas; o dono aprovou entregar `{{nome}}` e (18/09) `{{atendente}}` primeiro. O motor em `lib/campaigns/lead-vars.ts` já está pronto para receber mais.
 - Aviso (não bloqueio) de opt-out/origem no **wizard** (parte do E3 que ficou fora desta fatia; a tela rápida já tem o checkbox de ciência de opt-in no modal).
 - Retorno agendado ("me chama depois") — WIP em `apps/worker/src/lib/return-time-parse.ts` + `migrations/20260921_agent_followup_scheduling.sql` (ainda **não** aplicada/commitada).
 - `dispatch_run_at` ignorando fim de semana (continua; agora pelo menos a tela avisa o horário real).
+- **Saudação por 1º nome ou nome completo? (dono decide)** — hoje `{{atendente}}` resolve para o **primeiro nome** ("Larissa"). Se o dono quiser o nome completo, é só o `resolveAttendantName` (2 cópias) + testes.
+- **Campo dedicado "nome do atendente" por instância? (dono decide)** — hoje deriva de `whatsapp_instances.name`, que é o rótulo exibido no painel. Quem quiser "Atendimento" no painel e "Larissa" na mensagem precisa desse campo.
+- Renomear o agente no painel de "Julia (Amigo por Voz)" para algo sem nome fixo (decisão do dono; cosmético).
 - **Aviso pós-disparo ✅ resolvido em 17/09 (commit `414d07a3`)** — o modal mostra `first_send_at` lido do job.
 - **Filtros de lead quente ✅ resolvido em 17/09 (commit `414d07a3`)** — Presença de site (default sem site) + score visível na lista.
 - **Conversa agendada mostrando "aguardando" ✅ resolvido em 17/09 (commit `5fde5f1a`)** — conversa nasce sem atividade e o inbox mostra "Agendada para …".
 - **Varredura do "mesmo padrão" ✅ fechada em 18/09** — alarme falso, medido no banco (0 casos abertos).
-- **`salutation_name` da linha real ✅ corrigido em 18/09.**
-- **⚠️ Identity do chip ⛔ ABERTO (dono decide):** perfil do WhatsApp é "Larissa Mendes" e a mensagem diz "Aqui é a Julia" — **afeta o disparo de 18/09 09:00**.
-- **Linha antiga corrigida à mão ✅** — a conversa da Dra. Gabrielle teve `last_message_at`/`last_message_from_me` zerados; `salutation_name` **ainda** está `'Gabrielle Carvalho Pélvica'` na operação em produção (código corrigido, dado não).
+- **`salutation_name` da linha real ✅ corrigido em 18/09** (1 `UPDATE` guardado).
+- **Identity do chip ✅ resolvido em 18/09** — não se renomeia perfil de WhatsApp; o texto e o agente usam o nome da instância (`{{atendente}}`). O disparo de 18/09 09:00 saiu com "Aqui é a Larissa".
+- **Linha antiga corrigida à mão ✅** — a conversa da Dra. Gabrielle teve `last_message_at`/`last_message_from_me` zerados.
+
+## 18/09/2026 — Atendente por número: `{{atendente}}` no 1º contato e na IA (commit `5d9f02ba`)
+
+Diretriz do dono: "são vários números, cada 1 com seu nome e atendente — [a mensagem] tem que se adaptar ao nome da instância que está disparando".
+
+O problema tinha **duas metades**, e as duas apareciam no mesmo contato:
+
+1. **1º contato:** o texto dizia "Aqui é a Julia" fixo. Disparado pelo chip "Larissa Mendes", o lead recebia notificação de "Larissa Mendes" e abria "Aqui é a Julia".
+2. **Respostas da IA:** o system prompt do agente SDR (`ai_agents` `3ae8ac1f-…`) começa com "Você é a Julia, consultora da Ambern" e tem mais 2 ocorrências. Quem respondesse seria atendido por "Julia" mesmo tendo recebido mensagem de "Larissa" — incoerência no 1º minuto da conversa.
+
+**Fonte única do nome:** `whatsapp_instances.name` — a mesma coluna que a tela rápida já usa para mostrar o chip. `profile_name` (Evolution) **não** é lido: é o nome do perfil da pessoa real, muda por fora do sistema e já divergiu do painel (ver item 2 acima). O rótulo do painel é o que o dono controla.
+
+### Código (12 arquivos, `5d9f02ba`)
+
+- `lib/instances/attendant-name.ts` (puro): `resolveAttendantName(raw)` → primeiro nome (`"Larissa Mendes"` → `Larissa`, `"Dra. Gabrielle Carvalho"` → `Gabrielle`, `"Julia Abreu De Melo 5137"` → `Julia`) ou `null`. `null` é para rótulo que **não é nome de gente**: termos genéricos ("Atendimento", "Suporte", "Comercial"), tipos de estabelecimento ("Clínica", "Salão", "Barbearia", "Studio", "Ótica"), rótulos sem nome ("Cubot2", "01", "teste") e sobras de separador. Corta em separador (` - `/` – `/`|`/`/`/`(`/`:`), rejeita dígito e <2 letras, capitaliza a inicial.
+- `apps/worker/src/lib/attendant-name.ts` (**gêmeo**): o worker não importa de `@/lib` (o build copia só `apps/worker/`, `rootDir ./src`) — mesma solução de `agent-profile.ts`. Acrescenta `applyAttendantToPrompt(prompt, rawName)` e `ATTENDANT_FALLBACK = 'Julia'` (no prompt não existe "não responder"; no 1º contato existe, e lá `null` recusa o envio).
+- `test/attendant-name.test.ts`: importa **os dois** módulos e compara **34 casos**. Paridade é teste, não confiança — se um lado mudar, quebra.
+- `lib/campaigns/lead-vars.ts`: `LEAD_VARS = ['nome','atendente']`; `hasBrokenLeadVarSyntax` passou a tirar **qualquer** token bem formado antes de procurar chave solta.
+- `lib/campaigns/dispatch.ts`: resolve `{{atendente}}` por destinatário com a instância sorteada; sem valor → `failed` (`variavel_sem_valor:atendente`). Gate do bloco = "o texto tem qualquer token".
+- `app/api/admin/prospect-quick/launch/route.ts`: novo erro `missing_attendant_name` (só em texto livre, e depois de `validateOperationReferences`); gate do "Como chamar" agora testa `findLeadVars().includes('nome')`.
+- Tela: `DEFAULT_MESSAGE` com `{{atendente}}`, botão "+ atendente", prévia com os dois tokens resolvidos, e o seletor de número mostra "Quem atende este número: Larissa" (ou aviso vermelho se o rótulo não permitir saber).
+- Worker `apps/worker/src/handlers/ai.ts`: `applyAttendantToAgentPrompt` com cache de 5 min por instância (1 SELECT; **zero** query quando o prompt não tem `{{`). O prompt guarda o token — o nome nunca fica congelado no banco.
+- ⚠️ `handleAIResponse` (webchat) **não** troca o token: webchat não tem instância de WhatsApp.
+- **Ordem de deploy importa:** worker **primeiro**, depois o `UPDATE` do prompt. Invertido, o token ficaria literal no prompt.
+
+### Aplicado em produção (18/09)
+
+Deploy: push `5fde5f1a..5d9f02ba` (levou junto o commit de docs local `a6c6050e`) → worker auto-buildado com as 8 chaves repostas → web buildado de clone limpo → `/api/version` = `5d9f02ba`. Smoke (porta 80, `redirect:'manual'`): telas 307→login e APIs 401 (auth intacto).
+
+**Dado do 1º envio real corrigido junto** (o job já estava materializado e ia sair 18/09 09:00 com "Julia"): `jobs.payload.text` → "Aqui é a **Larissa**"; `campaigns.message` e `prospect_operations.message_text` → `{{atendente}}` (molde dos próximos disparos, o dispatch resolve); `prospect_operation_leads.opening_text` → literal (registro do que foi enviado e contexto do agente); `ai_agents.system_prompt` → **3 tokens, 0 "Julia"**. Todos os `UPDATE` guardados por `LIKE '%Julia%'` (idempotentes) e com backup prévio.
+
+Verificação dentro do container do worker, com o prompt real e a instância real: `applyAttendantToPrompt` devolveu "Você é a **Larissa**, consultora da Ambern…" (sem token restante) e `"Cubot2"` caiu no fallback "Julia". **Não foi preciso enviar mensagem para validar.**
+
+### Ligação com a pendência antiga `display_name` (jul/2026)
+
+A sessão `2026-07-12_a_2026-07-16_inbox-chatbot-meta-instagram.md` já pedia "`display_name` por instância (Julia Abreu→Julia, Denise, …)". A coluna **existe** em `whatsapp_instances` mas está **quase toda vazia** (medido em 18/09: só `Julia Abreu 47` = "Julia Abreu De Melo"; as outras 12 vazias) e nenhum código a lê ou escreve. Esta entrega resolve a necessidade **sem** depender dela, usando `name`. Se o dono quiser manter "Atendimento"/"Suporte" no rótulo do painel e ainda assim ter "Larissa" na mensagem, o caminho é: começar a usar `display_name` como fonte preferencial no `resolveAttendantName` (2 cópias + testes) e criar o campo na tela de instância.
 
 Especificação completa do módulo: `docs/PROSPECCAO.md` e `docs/PLANO-FUNIL-SDR-B2B.md` no repositório.

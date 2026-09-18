@@ -314,3 +314,29 @@ Revisão do dono após o disparo das 13:57: (1) "como vai dizer SAIR nela — n�
 - A mensagem já enviada (13:57) **não** foi reescrita; os próximos disparos (cron seg–sex 12:00 UTC) já usam a versão humanizada.
 
 **Áudios da sessão (MinIO `media/audio/campaign-ptt-*.mp3`):** `…7445542` (longo, descartado), `…7673071` (curto aprovado com SAIR, usado às 13:57), `…1134070` (sem SAIR, "Oi!" — substituído pelo tom), `…1286390` (atual: Olá!, sem SAIR). Variante adicional: regenerar com `/tmp/gerar-audio-ptt.mjs` dentro do worker (env `AUDIO_SCRIPT` + `OPENROUTER_KEY` da workspace 0002) e atualizar `automation_media` + `DEFAULT_AUDIO_URL`.
+
+## 18/09 (noite) — Rodada de validação (10+ nichos), exists:false = falha definitiva + nota interna com perfil do Google
+
+Dono pediu para validar disparos em ~10 nichos e reportou que "em alguns chats abre conversa e não dispara nada". Investigação com dados (jobs reais, não hipótese).
+
+### O que realmente aconteceu (fatos)
+- **Os 2 números citados pelo dono DISPARARAM com sucesso:**
+  - `(31) 8262-0328` Studio Priscila (Salão Sabará) → job `succeeded` 14:28:20 (texto) + 14:28:22 (áudio).
+  - `(31) 9231-3940` Auto Elétrica Lucimar (Contagem) → job `succeeded` 14:27:27 + 14:27:28.
+  - O que o dono viu: a conversa é **criada pelo dispatch ANTES** do envio (`lib/campaigns/dispatch.ts` — INSERT com `last_message_at NULL`; defeito já documentado no próprio código desde 17/09) e há **delay entre destinatários** (9000–12000ms) + fila com retries de outros jobs → a mensagem aparece 40s–2min depois. Nesses dois casos apareceu.
+- **Erro real 1 — número inexistente no WhatsApp (`exists:false`):** Google devolve telefones fixos/inexistentes. Evolution responde `HTTP 400 {"exists":false}` (ex.: `553136711937@`, `553132015783@`). Jobs ficavam em **retry infinito** (attempts 5–6, backoff longo) e o "chat fantasma" criado pelo dispatch **nunca era limpo** → inbox poluído por horas. Hoje: 10 jobs com este erro; campanhas afetadas: `5ffeb70e`, `ebf8a278`, `4db031f1`, `ed8ab05e`, `2f65595b`.
+- **Erro real 2 — "Não entregue: fora da janela de 24h… Message Template aprovado":** **não é o disparo**, é o **bloqueio de compliance do painel ao responder manualmente** um lead que ainda não escreveu (`app/api/inbox/send/route.ts:146`, erro **131047** da Meta Cloud API). A Larissa está conectada via **Cloud API (Meta)** (`whatsapp_instances.provider = cloud_api`). Sem janela de 24h aberta pelo cliente, responder manualmente é bloqueado (por design, correto).
+
+### Correções aplicadas (commits `fc5e83a1` worker + `2699bd2b` web)
+1. **Worker (`fc5e83a1`):** erro Evolution com `"exists":false` → **falha definitiva**: `markDead` (sem retry) + **DELETE da conversa órfã** que ainda não tem mensagem real (`is_internal IS DISTINCT FROM true`) — não polui mais o inbox.
+2. **Cron (`2699bd2b`):** após o start, para cada lead elegível cria a conversa (mesmo formato do dispatch) e insere **nota interna** (`is_internal=true`, autor `0000…0001`, visível só para equipe/dono), com o perfil do Google: empresa, categoria, endereço, telefone, site, avaliação ★ (count), score preliminar, pesquisas (nicho + cidade) e link do Google Maps. Pedido do dono: "no disparo automático já crie uma nota interna do perfil do google meu negocio para eu entender".
+3. Deploy: push `cdd1edd..2699bd2b` → worker 8/8 chaves → clone limpo → `/api/version` = `2699bd2b`. Suíte 444 passed (2 failures pré-existentes: checkout regex; inbox 200/202).
+
+### Rodada de validação (16 chamadas cron, niched e cidades de MG)
+- OK com envio (op → n° elegíveis): clinica odonto BH (`3100d3ce`→1), contabilidade Contagem (`0d888b3c`→2), despachante BH (`eb35c63c`→1), nutricionista Santa Luzia (`bb50164b`→2), estetica Betim (`b54f2e41`→1), pilates BH (`4b12d7f4`→1), salão de beleza Sabará (`53c43ddf`→3), lavanderia BH (`74026a65`→1), aulas particulares BH (`5d86e7cd`→1), auto elétrica Contagem (`d20ff77e`→4), vidraçaria Contagem (`6385452e`→3).
+- `no_eligible` (todos com site, filtro `website=missing` derruba): barbearia BH, oficina mecânica BH, imobiliária Nova Lima, petshop BH, chaveiro BH.
+- Operação pré-existente observada: `a6f9841b` "fisioterapeuta pelotas — 18/09" (2 elegíveis, 2 jobs ok).
+
+### Para o dono (resumo direto)
+- Os 2 números mostrados **foram enviados**; o "abre e não envia" tinha duas causas: (a) o chat nasce antes e a mensagem leva até ~2 min (delay entre destinatários) — nos 2 citados chegou; (b) números que **não têm WhatsApp** (fixos/inexistentes) ficavam presos em retry infinito criando chat fantasma — **corrigido** hoje.
+- A mensagem de "fora da janela de 24h / template aprovado" não vem do disparo: é o **bloqueio ao tentar responder manualmente** um lead que ainda não respondeu (Meta Cloud API, erro 131047). Quando o lead responder, a janela abre e você responde normalmente.

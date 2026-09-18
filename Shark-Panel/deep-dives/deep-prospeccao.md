@@ -232,6 +232,14 @@ Deploy: push `5fde5f1a..5d9f02ba` (levou junto o commit de docs local `a6c6050e`
 
 Verificação dentro do container do worker, com o prompt real e a instância real: `applyAttendantToPrompt` devolveu "Você é a **Larissa**, consultora da Ambern…" (sem token restante) e `"Cubot2"` caiu no fallback "Julia". **Não foi preciso enviar mensagem para validar.**
 
+### Auditoria dos números ativos e nomes resolvidos (18/09)
+
+Passados os 9 rótulos ativos pelo resolvedor: **8 resolvem, 1 bloqueia**. Larissa Mendes→Larissa, Amanda Soares→Amanda, Brenda Silva→Brenda, Caren LMA→Caren, Gabriele Garcia→Gabriele, Julia Abreu→Julia, Julia Abreu De Melo 5137→Julia, Julia Abreu Suporte→Julia. **Projeto Salmos→`null`** (bloqueia o disparo — correto, é número interno, não nome de gente).
+
+- ⚠️ **"Julia Abreu Suporte"** resolve para **Julia**, mas o `profile_name` dela na Evolution é **"Denise Ximenes"** — pendente de decisão do dono (renomear o rótulo para Denise ou manter Julia). Enquanto não decidir, quem receber desse número é atendido como "Julia".
+- As outras 4 instâncias da workspace (`Atendimentos Uniflix`, `Caren Atomos`, `Denise`, `Julia Abreu 47`) estão **deletadas** (`deleted_at`) — não entram.
+- **Agente renomeado (18/09, decisão do dono):** `ai_agents` `3ae8ac1f-…` de **"Julia (Amigo por Voz)"** para **"SDR Ambern"** (só `name`, 1 linha, `updated_at` atualizado; prompt intacto — conferido: 3 `{{atendente}}`, 0 "Julia"). `name` do agente é usado só para exibição/ordenação (`ORDER BY a.name` no seletor de agente do inbox e `agentName` na sugestão) — nada roteia por ele. Existe um **duplicado inativo** (`6c0d990b-…`) ainda chamado "Julia (Amigo por Voz)"; não foi tocado.
+
 ### Ligação com a pendência antiga `display_name` (jul/2026)
 
 A sessão `2026-07-12_a_2026-07-16_inbox-chatbot-meta-instagram.md` já pedia "`display_name` por instância (Julia Abreu→Julia, Denise, …)". A coluna **existe** em `whatsapp_instances` mas está **quase toda vazia** (medido em 18/09: só `Julia Abreu 47` = "Julia Abreu De Melo"; as outras 12 vazias) e nenhum código a lê ou escreve. Esta entrega resolve a necessidade **sem** depender dela, usando `name`. Se o dono quiser manter "Atendimento"/"Suporte" no rótulo do painel e ainda assim ter "Larissa" na mensagem, o caminho é: começar a usar `display_name` como fonte preferencial no `resolveAttendantName` (2 cópias + testes) e criar o campo na tela de instância.

@@ -299,3 +299,18 @@ Operação, lista e campanha recebem nome automático: `Auto 5 — <nicho> <cida
 
 ### Pendência/atenção
 `salutation_name` do lead ficou com o nome comercial inteiro ("Fisioterapia Pélvica em belo Horizonte. Dra.Ana Flavia Nunes") — `suggestSalutation` não fatiou. Sem impacto porque a mensagem usa só `{{atendente}}`, mas se `{{nome}}` for ativado em operações automáticas, revisar a heurística.
+
+## 18/09 (tarde) — Humanização do 1º contato: sem "SAIR" + abertura "Olá!"
+
+Revisão do dono após o disparo das 13:57: (1) "como vai dizer SAIR nela — não existe opção de sair, sair só em templates oficiais"; (2) "esse oiiiii está muito mal, parece debochada".
+
+**O que era verdade e o que mudou:**
+- Opt-out: fora de template oficial (Cloud API) **não existe** opt-out por palavra-chave no canal. O worker tem `OPT_OUT_KEYWORDS` (webhook.ts) que blacklista por **frase** ("sair da lista", "pare de mandar", "não quero mais receber", "stop", "descadastrar") — independe do que o texto avisa. Bare "sair"/"cancelar" **não** está na lista de propósito (falso-positivo em assinante: "não vou sair do plano"). Logo: remover o "SAIR" do copy não perde nenhuma proteção.
+- Tom do áudio: a TTS (Fish via OpenRouter, voz 5661bf8c…) rendeu "Oi!" como **"Oiiiii"** (sarcástico; transcrito assim no WhatsApp do lead). 
+
+**Novo padrão (commit `81ee379b` + `cdd1edd`, web `cdd1edd`):**
+- Texto (tela + cron `DEFAULT_MESSAGE`): _Olá! Aqui é a {{atendente}}, da Ambern 👋 Encontrei vocês no Google e fiquei curiosa: dá pra vocês aparecerem bem mais por lá, sabia? A gente cria sites profissionais e atendimento automático no WhatsApp pra isso. Se quiser, te mostro rapidinho como ficaria — sem compromisso. Tá bom?_
+- Áudio: _Olá! Aqui é a Larissa, da Ambern… sem compromisso nenhum._ → `campaign-ptt-1789751286390.mp3` (202 KB, ~12s, 200 OK). `automation_media` `1fcc7a2c` + `DEFAULT_AUDIO_URL` do cron atualizados.
+- A mensagem já enviada (13:57) **não** foi reescrita; os próximos disparos (cron seg–sex 12:00 UTC) já usam a versão humanizada.
+
+**Áudios da sessão (MinIO `media/audio/campaign-ptt-*.mp3`):** `…7445542` (longo, descartado), `…7673071` (curto aprovado com SAIR, usado às 13:57), `…1134070` (sem SAIR, "Oi!" — substituído pelo tom), `…1286390` (atual: Olá!, sem SAIR). Variante adicional: regenerar com `/tmp/gerar-audio-ptt.mjs` dentro do worker (env `AUDIO_SCRIPT` + `OPENROUTER_KEY` da workspace 0002) e atualizar `automation_media` + `DEFAULT_AUDIO_URL`.

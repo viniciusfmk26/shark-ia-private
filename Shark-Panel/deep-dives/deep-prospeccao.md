@@ -168,7 +168,17 @@ Logo depois do primeiro disparo: "abriu a conversa dela no inbox mas eu não man
 
 **Deploy:** commit `5fde5f1a` → push (worker redeployou, 8/8 chaves repostas) → build de clone limpo → `/api/version` = `5fde5f1a` (build_time 2026-09-17T22:27:15Z). Rotas conferidas de dentro do container (a app escuta na **porta 80**, `PORT=80`): `/api/version` 200, `/admin/prospect-quick` 307→login, `/admin/inbox` 307→login, `/api/inbox/conversations` 401, `/api/admin/prospect-quick/launch` 401, `/api/admin/prospect-radar/google` 401. Log do web/worker sem erro novo.
 
-⚠️ **Sintoma irmão não corrigido:** `apps/worker/src/handlers/background.ts:1655` (fluxo de cobrança/pedido) cria conversa sem esses dois campos e herda `now()`/`false` — mesmo defeito em potencial, precisa de análise própria.
+**Varredura dos 14 `INSERT INTO conversations` do repo (18/09) — o "sintoma irmão" era alarme falso.** Só o `dispatch.ts` criava conversa **aberta** com atividade falsa. `background.ts:1655` (cobrança) insere a mensagem logo depois e carimba `last_message_at`/`last_message_from_me = true` na linha `1708`; `auto-campaigns:613` nasce **`closed` de propósito** (comentário do próprio código: "conversa de broadcast nasce FECHADA — não polui o inbox aberto"); os demais (`trial-followup`, `amplopay-webhook`, `webchat/*`, `sync`, `import-history`) também têm mensagem na sequência. **Medido no banco:** **0** conversas em produção no estado fantasma (`status='open'` + nenhuma mensagem + `from_me=false`); as 773 nesse padrão são `closed` (broadcast/import, 19/04→16/09) e não aparecem no inbox aberto. Nada a corrigir nesses caminhos críticos.
+
+## 18/09/2026 — fechamento dos 4 pontos do 1º disparo real
+
+1. **`salutation_name` da linha real corrigido.** `prospect_operation_leads cdcc4fe4-…` foi de `'Gabrielle Carvalho Pélvica'` para `'Gabrielle Carvalho'` (1 linha, guardado pelo valor antigo). Era a única das 5 linhas da operação com valor suspeito. ⚠️ **Impacto na mensagem enviada = zero**: o texto da campanha **não usa `{{nome}}`** (conferido no payload do job agendado, não presumido) — a correção vale para as próximas campanhas que usarem a variável. Função validada contra os 5 nomes reais: "Daiane Nogueira - Nutricionista" → Daiane Nogueira, "Nutricionista Andressa Mello" → Andressa Mello, "Nutricionista Sabrina Ribes Zibetti" → Sabrina Ribes Zibetti, "Nutricionista Stéfani Biavaschi" → Stéfani Biavaschi. Limitação conhecida e **não** corrigida (não há caso real nos 25 leads do radar): prefixo de estabelecimento antes de honorífico, ex. "Clínica Dra. Ana Paula Souza - Dermatologia" → "Clínica Dra. Ana Paula Souza".
+
+2. **Identidade do chip ≠ persona — decisão do dono pendente.** Lido direto da Evolution API (read-only): chip da operação `e6e1c0f8-…` (descrição "Cubot2") = número `555391440074` com **profileName "Larissa Mendes"**; chip de disparo `31cdcb01-…` = `555381004072`, **"Gabriele Garcia" no painel mas profileName "Kerolayne Gonzaga"**. A persona do produto é **Julia** (`ai_agents.name = "Julia (Amigo por Voz)"`, cloud_api "Julia Abreu"/"Julia Abreu Suporte", mensagem "Aqui é a Julia, da Ambern"). **Efeito:** o lead vê "Larissa Mendes" na notificação e lê "Aqui é a Julia". Renomear perfil é ação externa visível em chip que pode ser de pessoa real → **não executado**. Alternativa do lado do código: `DEFAULT_MESSAGE` em `app/(dashboard)/admin/prospect-quick/page.tsx`.
+
+3. **Varredura do "mesmo padrão" nos 14 `INSERT INTO conversations`:** alarme falso, nenhum código novo tocado. Ver o bloco acima (0 conversas no estado fantasma em produção; `auto-campaigns` nasce `closed` de propósito).
+
+4. **Filtro "Só quem NÃO tem site" mantido como default** — foi o que motivou o relato original ("está buscando com site e leads frios"); a alternativa está a um clique e o selo `Alta 75/100` + "sem site" explica a lista.
 
 ## Pendências / próximos
 
@@ -179,6 +189,9 @@ Logo depois do primeiro disparo: "abriu a conversa dela no inbox mas eu não man
 - **Aviso pós-disparo ✅ resolvido em 17/09 (commit `414d07a3`)** — o modal mostra `first_send_at` lido do job.
 - **Filtros de lead quente ✅ resolvido em 17/09 (commit `414d07a3`)** — Presença de site (default sem site) + score visível na lista.
 - **Conversa agendada mostrando "aguardando" ✅ resolvido em 17/09 (commit `5fde5f1a`)** — conversa nasce sem atividade e o inbox mostra "Agendada para …".
+- **Varredura do "mesmo padrão" ✅ fechada em 18/09** — alarme falso, medido no banco (0 casos abertos).
+- **`salutation_name` da linha real ✅ corrigido em 18/09.**
+- **⚠️ Identity do chip ⛔ ABERTO (dono decide):** perfil do WhatsApp é "Larissa Mendes" e a mensagem diz "Aqui é a Julia" — **afeta o disparo de 18/09 09:00**.
 - **Linha antiga corrigida à mão ✅** — a conversa da Dra. Gabrielle teve `last_message_at`/`last_message_from_me` zerados; `salutation_name` **ainda** está `'Gabrielle Carvalho Pélvica'` na operação em produção (código corrigido, dado não).
 
 Especificação completa do módulo: `docs/PROSPECCAO.md` e `docs/PLANO-FUNIL-SDR-B2B.md` no repositório.

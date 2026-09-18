@@ -255,3 +255,47 @@ O dono perguntou "onde vejo a mensagem programada? e é áudio ou texto?" — a 
 - Deploy: commit `6432c543` → push + 8/8 chaves no worker → build de clone limpo → `/api/version` = `6432c54` (04:28Z). Suíte sem regressão; SQL validado contra a conversa real `c27efdb5` antes do deploy.
 
 Especificação completa do módulo: `docs/PROSPECCAO.md` e `docs/PLANO-FUNIL-SDR-B2B.md` no repositório.
+
+## 18/09/2026 — Limite 5 na busca + 1º contato automático com áudio via cron
+
+**Objetivo do dono:** ver o funil rodando de verdade — "rebaixar o limite de buscar para 5 automática, prospect e mande a primeira mensagem automática no whatsapp da larissa via áudio, pode colocar cron e nomeclatura nas listas que você baixou me informe cada etapa do processo".
+
+**O que foi feito**
+
+### Busca agora começa em 5
+- `QuickResultCount` ganhou `'5'` (era só 10/20/30/40); a tela (`page.tsx` useState) e a rota `/api/admin/prospect-radar/google` usam **5 como default**.
+- Toda a lógica de busca + triagem foi extraída da rota para `lib/prospect-quick/search-google.ts` (`searchAndScreenResults`): fetch Google Places, dedup, score preliminar, screening (leads existentes, histórico 60 d, blacklist workspace + global, `screenPlaces`). Rota `/google` e o novo cron são **uma única fonte de verdade** — manutenção em um lugar só. Erros mapeados como antes: `GooglePlacesMisconfiguredError` → 503, `GooglePlacesApiError` → 502.
+
+### Mídia no 1º contato
+- `components/prospect-quick/types.ts` + `types/prospect-quick.ts`: `message_media_url` / `message_media_type` aceitos no launch (antes hardcoded `null`).
+- O dispatch (`lib/campaigns/dispatch.ts`) já enviava texto → mídia (+1,5 s); agora a operação tem mídia e o áudio PTT sai junto.
+
+### Cron `POST /api/cron/prospect-auto-send`
+- Auth: `x-cron-secret` / `x-cron-token` / Bearer (mesmo padrão de `knowledge-base/ingest`).
+- Flow: busca 5 (website=missing, min_score=60) → `preselect` → `importGooglePlaces` → `createRadarList` → `createOperation` com mídia (áudio curto) → `startProspectOperation(manualOverrideNoOptin: true, overrideSource: 'quick_launch')` → dispara.
+- Resposta JSON: `ok`, `operation_id`, `list_id`, `campaign_id`, `eligible`, `blocked`, `first_send_at`, `niche`, `cities`, `searched`.
+- Eventos: `google_selection_confirmed` + `manual_no_optin_override` registrados em `prospect_radar_events` (actor = 0000...0001, source quick_launch).
+- Params via query: `q` (obrigatório), `cities`, `resultCount` (default 5), `min_score` (default 60), `website` (default "missing"), `audio_url` (default = áudio curto), `instance_id` (default Larissa), `ai_agent_id` (default SDR Ambern).
+
+### Nomeclatura
+Operação, lista e campanha recebem nome automático: `Auto 5 — <nicho> <cidade> — DD/MM HH:mm 🎙️` (fuso BRT).
+
+### Crontab
+`0 12 * * 1-5` (seg–sex 12:00 UTC = 09:00 BRT) → curl no endpoint com `q=fisioterapia%20pelvica&cities=Belo%20Horizonte&resultCount=5&min_score=60&website=missing`. Log em `/var/log/prospect-auto-send.log`.
+
+### Demonstração em produção (18/09 13:57 BRT)
+- Busca 5 → 1 elegível: "Fisioterapia Pélvica em belo Horizonte. Dra.Ana Flavia Nunes" (+31 99208-9615), score 68, sem site.
+- Operação `2dc4e0f8`, lista `ffac2b8f`, campanha `a7ce811e` — status `completed`/`running`, `message_media_type = audio`.
+- Job texto: 13:57:11, `delivered`. Job áudio PTT: 13:57:15, `delivered` (conversa `bfc336d8`).
+- Lead: `eligibility = blocked_no_optin` (sem opt-in registrado — correto; override registrado em eventos).
+
+### Commit e deploy
+`ed358c4` → push (8/8 worker chaves) → clone limpo → `/api/version` = `ed358c4`. Suíte 444 passed (2 failures pré-existentes não relacionados: checkout regex; inbox 200/202). Docs commitados localmente (`4d581479`), sem push (evita churn de worker keys).
+
+### O que não mudou
+- Disparo de hoje (09:00) já executado (job e537cccf succeeded 09:00:15-03, só texto) — não tocado.
+- Dra. Gabrielle: screening auto-bloqueia (suppressed/alreadyContacted) — não recontatada.
+- Chave global `app_meta.openrouter_api_key` continua morta (401); a chave válida é da workspace 0002.
+
+### Pendência/atenção
+`salutation_name` do lead ficou com o nome comercial inteiro ("Fisioterapia Pélvica em belo Horizonte. Dra.Ana Flavia Nunes") — `suggestSalutation` não fatiou. Sem impacto porque a mensagem usa só `{{atendente}}`, mas se `{{nome}}` for ativado em operações automáticas, revisar a heurística.

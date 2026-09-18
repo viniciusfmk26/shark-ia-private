@@ -161,8 +161,8 @@ Logo depois do primeiro disparo: "abriu a conversa dela no inbox mas eu não man
 **Correção (opção A, escolhida pelo dono):** a conversa nasce "sem ninguém ter falado" (`NULL`/`NULL`; o worker carimba no envio real, em `apps/worker/src/handlers/media.ts`) e o inbox passa a **explicar** o agendamento:
 
 - `lib/inbox/scheduled-send.ts` (novo, puro): "hoje às 09:00" / "amanhã às 09:00" / "18/09 às 09:00", dia decidido em `America/Sao_Paulo` (+6 testes).
-- `lib/server/inbox.ts`: LATERAL devolve `scheduled_send_at` = `MIN(run_at)` do job `send_message` **queued com >5 min de folga** (sem o corte, um lote disparando agora piscaria o selo em todas as conversas). Usa `idx_jobs_queue`, **0,2 ms** medidos.
-- Lista: prévia vira "🕐 Agendada para amanhã às 09:00"; thread vazia explica o agendamento em vez de "envie uma mensagem".
+- `lib/server/inbox.ts`: LATERAL devolve `scheduled_send_at` = `MIN(run_at)` do job `send_message` **queued com >5 min de folga** (sem o corte, um lote disparando agora piscaria o selo em todas as conversas). Usa `idx_jobs_queue`, **0,2 ms** medidos. **(18/09) passou a devolver também o texto e o tipo de mídia** — ver "Prévia do envio agendado" no fim do arquivo.
+- Lista: prévia vira "🕐 Agendada para amanhã às 09:00"; thread vazia explica o agendamento em vez de "envie uma mensagem". **(18/09) a lista mostra a prévia do texto** ("🕐 Agendada para amanhã às 09:00 · Oi! Aqui é a Larissa…") e a thread mostra o balão programado com o texto exato.
 - ⚠️ `lastMessageTime` virou `string | null` **de propósito** — o `tsc` apontou os 4 consumidores que assumiam horário presente (SLA de 15 min, filtro "Sem resposta", dedup por telefone, `StateSlot`) e cada um ganhou tratamento explícito; `new Date(null)` = 1970 virava "01/01".
 - ⚠️ `lastMessageFromMe` não colapsa mais `null → false`: a tarja "aguardando" testa `=== false`, e "ninguém falou" ≠ "o cliente está esperando".
 - ⚠️ Paginação: se a página termina numa conversa sem horário (elas ordenam por último), `hasMore = false` — cursor nulo viraria `cursor=null` e derrubaria o cast no Postgres.
@@ -243,5 +243,15 @@ Passados os 9 rótulos ativos pelo resolvedor: **8 resolvem, 1 bloqueia**. Laris
 ### Ligação com a pendência antiga `display_name` (jul/2026)
 
 A sessão `2026-07-12_a_2026-07-16_inbox-chatbot-meta-instagram.md` já pedia "`display_name` por instância (Julia Abreu→Julia, Denise, …)". A coluna **existe** em `whatsapp_instances` mas está **quase toda vazia** (medido em 18/09: só `Julia Abreu 47` = "Julia Abreu De Melo"; as outras 12 vazias) e nenhum código a lê ou escreve. Esta entrega resolve a necessidade **sem** depender dela, usando `name`. Se o dono quiser manter "Atendimento"/"Suporte" no rótulo do painel e ainda assim ter "Larissa" na mensagem, o caminho é: começar a usar `display_name` como fonte preferencial no `resolveAttendantName` (2 cópias + testes) e criar o campo na tela de instância.
+
+### Prévia do envio agendado no inbox (18/09, pedido do dono)
+
+O dono perguntou "onde vejo a mensagem programada? e é áudio ou texto?" — a resposta revelou uma lacuna de tela: o selo mostrava o **horário**, mas o **texto** não aparecia em lugar nenhum do painel. Resposta factual antes do código: é **texto** (`jobs.payload`, sem `attachments`), vindo de `campaigns.message` sem `message_media_url/type`.
+
+- `lib/server/inbox.ts` (LATERAL `sch`): de `MIN(j.run_at)` para **primeiro job por `ORDER BY run_at LIMIT 1`**, devolvendo `scheduled_at`, `payload->>'text'` (já **materializado** — o dispatch resolve `{{nome}}`/`{{atendente}}` no enfileiramento, então a prévia é o texto EXATO que o cliente recebe) e o tipo de mídia (`attachments[0].isPtt`/`type`) para envios só-áudio/imagem. Mesma varredura indexada (`idx_jobs_queue`).
+- Lista (`conversation-row.tsx`): "🕐 Agendada para amanhã às 09:00 **· Oi! Aqui é a Larissa…**" (truncado; áudio sem texto → "🎤 Áudio").
+- Thread (`chat-view.tsx`): **balão programado** — borda tracejada + fundo sky, à direita (como "de mim"), com o texto exato e a tag "🕐 Agendada para …" logo abaixo; conversa **sem** agendamento continua no EmptyState normal.
+- ⚠️ O balão é prévia do JOB, não `INSERT INTO messages`: `messages` continua vazio até o envio real (não afeta badge, janela 24h, dedup). Visual tracejado de propósito para não parecer mensagem enviada.
+- Deploy: commit `6432c543` → push + 8/8 chaves no worker → build de clone limpo → `/api/version` = `6432c54` (04:28Z). Suíte sem regressão; SQL validado contra a conversa real `c27efdb5` antes do deploy.
 
 Especificação completa do módulo: `docs/PROSPECCAO.md` e `docs/PLANO-FUNIL-SDR-B2B.md` no repositório.

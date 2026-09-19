@@ -359,3 +359,23 @@ Dono: "faça prospecção automatica dispara audio para 5 empresas mande por wha
 - Push → worker 8/8 chaves repostas (procedimento A5.3) → build via **clone limpo** (A5.4, NUNCA working tree com WIP) → `docker service update --force` (tag latest não recria sem force) → `/api/version` build_time novo, git_sha "unknown" (cosmético do clone depth-1).
 - Disparo 13:51 BRT: `q=random` → sorteou **"eletricista Betim"** → 5 buscadas, **3 elegíveis** → operação `5819d3eb` ("Auto 5 — eletricista Betim — 19/09 13:51 🎙️"), lista `c52ebbf1`, campanha `fa5991fa`, áudio variante **C** (Elogio), 1 `succeeded` + 2 `queued` (13:51–13:53 BRT), mensagens na **Larissa Mendes** (`e6e1c0f8`, final 0074). Payload: `isPtt: true`, texto vazio (voice_only).
 - 2 das 5 empresas buscadas foram filtradas (tinham site ou score abaixo) — 3 áudios enviados no lugar de 5.
+
+## 19/09 (tarde) — Bug "chat duplicado" na prospecção por áudio → fix no webhook (commit `4d09f1d1`)
+
+### Relato do dono (após o disparo das 13:51)
+"Ela tá duplicando o chat novamente, abriu um chat com número e um site com nome da empresa (31) 9363-1621 Conserlar Betim, e os outros não mandou (31) 8652-9561, mensagem só abriu o chat".
+
+### Diagnóstico (dados reais, sem achismo)
+- Os **jobs estavam todos `succeeded`** e as mensagens de áudio estavam **entregues** (`delivered`) nas conversas originais com nome — o "não mandou" do dono era visual: o Inbox mostrava um **chat vazio duplicado** ao lado do chat correto com nome/áudio.
+- Causa raiz: o cron usa o número do Google Places (**celular BR com o 9**, 13 dígitos — ex. `5531993631621`) para criar contato/conversa. A Evolution (instância Larissa) responde o ack `send.message` com o **número canônico SEM o 9** (12 dígitos — ex. `553193631621`). O webhook buscava a conversa por `contact_phone` **exato** → não achava → criava contato novo + conversa vazia por lead (`source='whatsapp_incoming'`, sem nome).
+- Duplicatas criadas em 19/09 (master): conversas `51dbdf5a`, `6841972c`, `c72c859e` (0 mensagens) + contatos `ac1f9c4e`, `7473709c`, `7462fd08` (0 pagamentos/subs/trials).
+
+### Fix (worker-only, commit `4d09f1d1`)
+- **`apps/worker/src/lib/brazil-phone-variants.ts`** (novo, isolado como `return-time-parse.ts` para teste sem `DATABASE_URL`): `brazilPhoneVariants()` gera variantes BR do número — 13 dígitos → também sem o 9; 12 dígitos → também com o 9 após o DDD em `55BRDD+NÚMERO`.
+- **`apps/worker/src/handlers/webhook.ts`**:
+  - Antes do INSERT de contato: busca por variantes (`phone_e164 = ANY(...) OR phone = ANY(...)`, exato primeiro) → se achar, **reusa** (UPDATE jid + log `contact_reused_variant`) em vez de criar duplicado.
+  - Lookup da conversa: `contact_phone = ANY($3::text[])` com variantes, `ORDER BY` exato primeiro, `last_message_at DESC NULLS LAST`.
+- **Testes**: `test/worker-brazil-phone-variants.test.ts` (7 casos, inclui os 3 casos reais do bug). tsc worker+web limpos; suíte relevante 120/120.
+- **Limpeza do banco**: deletadas as 3 conversas vazias duplicadas e os 3 contatos `whatsapp_incoming` órfãos (verificados 0 mensagens/compliance/pagamentos antes).
+- **Deploy**: push → worker auto-builda e **perde as 8 chaves** → repostas 8/8 via A5.3 (spec zerou e foi restaurado de `PreviousSpec`). Fix compilado confirmado no container (`/app/dist/handlers/webhook.js` com `brazilPhoneVariants`, `contact_phone = ANY`, `contact_reused_variant`). Sem erros nos logs.
+- Web **não** foi rebuildado (fix é worker-only).

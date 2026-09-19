@@ -340,3 +340,22 @@ Dono pediu para validar disparos em ~10 nichos e reportou que "em alguns chats a
 ### Para o dono (resumo direto)
 - Os 2 números mostrados **foram enviados**; o "abre e não envia" tinha duas causas: (a) o chat nasce antes e a mensagem leva até ~2 min (delay entre destinatários) — nos 2 citados chegou; (b) números que **não têm WhatsApp** (fixos/inexistentes) ficavam presos em retry infinito criando chat fantasma — **corrigido** hoje.
 - A mensagem de "fora da janela de 24h / template aprovado" não vem do disparo: é o **bloqueio ao tentar responder manualmente** um lead que ainda não respondeu (Meta Cloud API, erro 131047). Quando o lead responder, a janela abre e você responde normalmente.
+
+## 19/09 (manhã) — Modo teste: cap UNKNOWN 50→120 + `q=random` (nichos variados)
+
+Dono: "faça prospecção automatica dispara audio para 5 empresas mande por whatsapp da larissa mendes numero final 0074… em modo teste o cap pode ficar desarmado ou melhor suba ele para 120 o nicho e randomico quero testar diferentes nichos".
+
+### Cap de qualidade UNKNOWN 50 → 120 (`lib/whatsapp/dispatch-guard.ts`)
+- **Decisão explícita do dono (19/09/2026)** para rodada de testes de nichos variados. Documentada no código com data e motivo; reavaliar ao fim dos testes.
+- Impacto real avaliado: as réguas ativas (Renovação Expira HOJE/AMANHÃ) usam Julia Abreu **cloud_api GREEN** — o cap UNKNOWN **não se aplica** a elas. O cap UNKNOWN afeta instâncias Evolution (Larissa) e toda instância sem rating Meta. Hoje só a Larissa dispara campanha em massa no master, então o efeito colateral é mínimo.
+- Lembrete: override (`qualityOverride`) **não** destrava `cap_exceeded` — só `quality_blocked` (YELLOW/RED). Então antes do cap subir, um lote de 5 na Larissa estava bloqueado com 48/50 usados (janela deslizante 24h).
+
+### `q=random` no cron (`POST /api/cron/prospect-auto-send`)
+- `q=random` sorteia um nicho da lista `RANDOM_NICHES` (28 nichos default: academia Betim, manicure Contagem, eletricista Betim, ar-condicionado Santa Luzia, marido de aluguel Betim, etc.) e evita repetir o último sorteado (`app_meta['prospect_random_last_niche']`).
+- O dono pode sobrescrever a lista com `app_meta['prospect_random_niches']` (JSON array de strings).
+- Resposta ganhou `random_niche: true` e `random_niche_source: 'default'|'config'`.
+
+### Deploy + validação em produção (commit `2249a924`)
+- Push → worker 8/8 chaves repostas (procedimento A5.3) → build via **clone limpo** (A5.4, NUNCA working tree com WIP) → `docker service update --force` (tag latest não recria sem force) → `/api/version` build_time novo, git_sha "unknown" (cosmético do clone depth-1).
+- Disparo 13:51 BRT: `q=random` → sorteou **"eletricista Betim"** → 5 buscadas, **3 elegíveis** → operação `5819d3eb` ("Auto 5 — eletricista Betim — 19/09 13:51 🎙️"), lista `c52ebbf1`, campanha `fa5991fa`, áudio variante **C** (Elogio), 1 `succeeded` + 2 `queued` (13:51–13:53 BRT), mensagens na **Larissa Mendes** (`e6e1c0f8`, final 0074). Payload: `isPtt: true`, texto vazio (voice_only).
+- 2 das 5 empresas buscadas foram filtradas (tinham site ou score abaixo) — 3 áudios enviados no lugar de 5.

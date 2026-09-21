@@ -77,6 +77,39 @@ A Meta gera o 555 automaticamente ao criar o WABA; a empresa verificada tem o n�
 
 ---
 
+### BUG-019 — resolveInstanceByPhoneNumberId pega instância DELETADA (duplicidade cloud_phone_number_id) 🔴 PENDENTE (código)
+
+**Identificado em:** 21/09/2026 (durante BUG-018, workspace Shark2)
+**Severidade:** Alta — quando uma instância Cloud API é deletada sem zerar
+`cloud_phone_number_id` e uma NOVA instância é criada com o mesmo número, o
+webhook da Meta cai na instância fantasma (deleted, com token antigo/morto) e
+as mensagens somem do painel. Causou o sintoma "o tubarão não funciona".
+
+**Arquivo:** `app/api/webhook/cloud/route.ts` → `resolveInstanceByPhoneNumberId`:
+```sql
+SELECT workspace_id, name, evolution_instance_id, cloud_access_token
+  FROM whatsapp_instances
+ WHERE provider = 'cloud_api' AND cloud_phone_number_id = $1
+ LIMIT 1            -- ⚠️ SEM filtro de status! pode retornar a deleted
+```
+
+**Fix sugerido (deploy futuro):**
+```sql
+WHERE provider = 'cloud_api' AND cloud_phone_number_id = $1
+  AND status != 'deleted'
+ORDER BY CASE WHEN status = 'connected' THEN 0 ELSE 1 END
+LIMIT 1
+```
+
+**Duplicatas conhecidas em produção (limpeza pendente):**
+- `1d4cff2d-...` "Vinicius Clemente - 8755" (deleted, `1282568201613539`) — ✓ já zerado o phone_number_id em 21/09
+- `6f65b5bf-...` "Julia Abreu 47" (deleted, `1155677294305122`) — compartilha com "Julia Abreu De Melo 5137" (`7b93dff5`, connected) — **ainda ativo, não mexido**
+
+**Sintoma clássico:** instância `connected` na UI, mas inbound some; no log o job
+`process_webhook` carrega o NOME da instância deletada no payload.
+
+---
+
 ### BUG-2026-09-15 — Workspace novo + número oficial (Cloud API): mensagens não chegam e "não puxa números" ✅ RESOLVIDO (UX)
 
 **Estado:** ✅ Melhoria em produção (deploy `zapflix-tech:latest`, commit `fb76e617`)
@@ -842,7 +875,7 @@ Severidade média porque já é protegido por `ROTATION_API_KEY` (serviço exter
 
 | ID | Descrição | Corrigido em | Commit |
 |----|-----------|-------------|--------|
-| BUG-018 | Instâncias Cloud API "nunca funcionam" no workspace Shark2 — token de system user `EAAPH...` havia sido invalidado pela Meta (erro 190/460, sessão revogada por troca de senha/segurança). Painel gerava verify tokens corretos (`cloud_webhook_verify_token` DEFAULT `gen_random_uuid()`), webhook `/api/webhook/cloud` respondia 200, mas QUALQUER chamada com o token gravado nas instâncias falhava (0 mensagens, 0 `processed_events`, 0 webhooks). Não era problema de workspace. Fix: `UPDATE whatsapp_instances SET cloud_access_token = meta_apps.access_token` nas 2 instâncias (`9f0806f9-...` Vinicius Clemente e `1d8cc140-...` Vinicius FIT) usando o token do app `newapp` (`EAAgUl...`, SYSTEM_USER permanente, `expires_at: 0`, scopes `whatsapp_business_management`/`whatsapp_business_messaging`/`whatsapp_business_manage_events`). Validação pós-fix: `/me` → CIganus (id 122126852877393162) ✅ e Graph enxerga o número `1282568201613539` (+55 53 8129-8755, Vinicius Clemente) ✅. Diagnóstico sem alteração de código; apenas correção de dado em produção. | 21/09/2026 | manual (sem commit; fix de dados) |
+| BUG-018 | Instâncias Cloud API "nunca funcionam" no workspace Shark2 — **3 causas encadeadas**: (1) token de system user `EAAPH...` invalidado pela Meta (erro 190/460); (2) verify token do webhook: a Meta usa o `811efd50` do App, mas instâncias criadas manualmente ganhavam tokens aleatórios (`cloud_webhook_verify_token` DEFAULT `gen_random_uuid()`), então GET `/api/webhook/cloud` respondia 403 para a Meta → webhook nunca ativava; (3) **instância fantasma**: existiam 2 instâncias com o MESMO `cloud_phone_number_id` (`1282568201613539`) — a antiga "Vinicius Clemente - 8755" estava `deleted` mas o `resolveInstanceByPhoneNumberId` do webhook faz `LIMIT 1` SEM filtrar `status != 'deleted'` → Postgres devolvia a DELETADA (token morto `EAAPH...`) → mensagens do tubarão caiam na instância fantasma e sumiam do painel. Fixes (dados, sem deploy): (1) `UPDATE whatsapp_instances SET cloud_access_token = meta_apps.access_token` para `9f0806f9-...` e `1d8cc140-...`; (2) `UPDATE whatsapp_instances SET cloud_webhook_verify_token = '811efd50-3060-4c2b-8224-44cda83eb568'` (token do app `newapp`) nas 2 instâncias — GET agora 200; (3) `UPDATE whatsapp_instances SET cloud_phone_number_id = NULL WHERE id = '1d4cff2d-...'` (deleted), para o resolve cair na ativa. Validação pós-fix: `/me` → CIganus ✅, GET do número `1282568201613539` → +55 53 8129-8755 ✅, webhook das 2 instâncias recebendo (logs `CloudWebhook enqueued` + jobs `process_webhook succeeded` + `send_message_ok`) ✅. **Observação de comportamento:** mensagens de teste do MESMO número de origem (`555381062741`) para os 2 números caem na MESMA conversa (1 contato = 1 conversa por workspace) e o worker migra a conversa entre instâncias (`conv_migrated`) — esperado, não é falha; testar com números de origem distintos para ver chats separados. **Bug de código pendente:** adicionar `AND status != 'deleted'` (ou ORDER BY status) no `resolveInstanceByPhoneNumberId`; limpar duplicata antiga "Julia Abreu 47" (`6f65b5bf`, deleted) que compartilha `cloud_phone_number_id 1155677294305122` com "Julia Abreu De Melo 5137". | 21/09/2026 | manual (sem commit; fix de dados) |
 | — | Cron secret hardcoded 'zapflix2026' | 26/04/2026 | — |
 | B1 | Anti-ban quebrado — queries SQL filtravam `direction='outbound'` mas banco usa `'out'`, contadores sempre 0 e limite diário nunca disparava (worker.ts linhas 3692, 4592, 4601) | 27/04/2026 | fe65a0ca |
 | B2 | AI Agent histórico vazio — SELECT usava coluna `body` (correta é `text`) e filtro JS comparava com `'outbound'` (worker.ts linhas 3299/3306) | 27/04/2026 | e2f5ba16 |

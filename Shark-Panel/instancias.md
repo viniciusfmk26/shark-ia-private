@@ -54,3 +54,20 @@ para distribuir carga via `app/api/rotation/`.
      AND wi.id IN ('<instance_id_1>','<instance_id_2>');
    ```
 5. **Validar pós-fix:** `/me` responde (id/nome) e `GET /<phone_number_id>?fields=display_phone_number,verified_name` enxerga o número da instância.
+6. **CONFERIR DUPLICIDADE de `cloud_phone_number_id`** (bug BUG-019): se a instância "não funciona" mesmo com token/verify ok e o job `process_webhook` traz o nome de uma instância DELETADA no payload, há 2 instâncias com o mesmo phone_number_id:
+   ```sql
+   SELECT cloud_phone_number_id, COUNT(*) FROM whatsapp_instances
+   WHERE provider='cloud_api' AND cloud_phone_number_id IS NOT NULL
+   GROUP BY cloud_phone_number_id HAVING COUNT(*) > 1;
+   ```
+   Fix (dados): zerar o `cloud_phone_number_id` da instância `deleted`:
+   ```sql
+   UPDATE whatsapp_instances SET cloud_phone_number_id = NULL, updated_at = now()
+   WHERE id = '<instancia_deletada>';
+   ```
+   Fix definitivo (deploy): `resolveInstanceByPhoneNumberId` deve filtrar `status != 'deleted'`.
+
+**⚠️ Comportamento esperado — conversa única por contato:** mensagens de teste do MESMO
+número de origem para 2 instâncias do mesmo workspace caem na MESMA conversa (1 contato =
+1 conversa por workspace) e o worker migra a conversa entre instâncias (`conv_migrated` no
+log). Para ver chats separados, usar números de origem distintos.

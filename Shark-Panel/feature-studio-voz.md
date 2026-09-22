@@ -101,3 +101,20 @@ Pergunta: se o OpenRouter free aceita `voice` (ID de modelo), aceita áudio de r
 - `voice: "data:audio/mpeg;base64,..."` → HTTP 400 rejeitado.
 - Conclusão: OpenRouter free = só vozes públicas do catálogo (`voice: <model_id>`). Clonagem exige fish.audio oficial (API key + créditos) ou ElevenLabs IVC (já suportado no Studio).
 - Método do teste: ffmpeg → PCM 16k mono → autocorrelação frame-wise (f0 50-400Hz) via script Node. Não repetir o experimento sem motivo.
+
+## Fish no dialog "Gerar Áudio com IA" do Inbox + favorito na conversa (22/09/2026 22:54)
+
+Depois de o dono reportar que o Inbox "não puxava fishaudio e nem estrela de favoritos", o diagnóstico confirmou **produção desatualizada** (imagem de 43h, sem o dialog novo) — não era bug do código. A galeria Fish só existia no Estúdio (`components/studio/tts-panel.tsx`); o `components/media/generate-audio-dialog.tsx` (usado no Inbox, Templates e Guided Funnels) só tinha estados/funções de Fish adicionados, sem o JSX renderizado.
+
+Implementado (commit N/A — deploy do working tree, build manual):
+- **Seletor "Motor de voz"** no dialog: cards ElevenLabs (violeta) vs Fish Audio (âmbar), com reset do preview ao trocar.
+- **Galeria Fish Audio** no dialog (mesmo padrão do Estúdio): chips de idioma (PT default), busca por nome, lista paginada (24/pág, "carregar mais"), ▶ amostra curta (`save:false`, não grava), ✓ selecionar voz (badge com o título da voz escolhida), nota "sem voz selecionada = padrão pt-BR".
+- `handleGeneratePreview` agora envia `provider:'fish'` + `fish_voice_id` quando o motor é Fish; NÃO exige mais `voiceId` do ElevenLabs nesse modo; controles Voz/Modelo/v3 ficam restritos ao motor ElevenLabs.
+- **Favorito do workspace vale na conversa**: antes, conversa sem voz de agente forçava escolher voz manualmente (ignorava o favorito). Agora o favorito é usado também na conversa; só força escolher quando NÃO há favorito (nunca usar a 1ª voz por acaso). Com voz de agente configurada, a voz dela continua vencendo (intencional).
+- Fechamento do dialog reseta motor/seleção/busca (reabre em ElevenLabs).
+
+Deploy: `docker build -t zapflix-tech:latest /root/Zapflix-Tech` + `docker service update --image zapflix-tech:latest --force wp_zapflix-web`. Validado: galeria Fish presente no bundle de produção (3 chunks), `/api/fish/voices` respondendo (401 sem sessão), app saudável (SSE/Redis/crons/webhooks OK).
+
+⚠️ Build manual sem `--build-arg GIT_SHA` → `/api/version` mostra `git_sha: "unknown"` (build_time correto). Comportamento conhecido — o `scripts/deploy-web.sh` grava o SHA do HEAD (que não inclui mudanças não commitadas, CC-10).
+
+Validação: `npx tsc --noEmit` limpo; `vitest` 467/469 (2 falhas pré-existentes em checkout/inbox, confirmadas no HEAD limpo; não são desta mudança).

@@ -948,3 +948,13 @@ Severidade média porque já é protegido por `ROTATION_API_KEY` (serviço exter
 **Fix aplicado:** conversa nasce com `last_message_at = NULL` e `last_message_from_me = NULL` (o worker carimba no envio real) → vai para o fim da lista (`NULLS LAST`); o inbox mostra o selo **"Agendada para amanhã às 09:00"** (`lib/inbox/scheduled-send.ts` + `MIN(run_at)` do job `send_message` queued com >5 min). `Conversation.lastMessageTime` passou a `string | null` e os 4 consumidores que assumiam horário presente tratam o nulo. Detalhes na deep-dive: `deep-dives/deep-prospeccao.md`.
 
 **Varredura dos 14 `INSERT INTO conversations` do repo (18/09) — o "sintoma irmão" era alarme falso:** `background.ts:1655` (cobrança/pedido) insere a mensagem logo em seguida e carimba `last_message_at`/`last_message_from_me = true` (`1708`); `cron/auto-campaigns:613` nasce `closed` **de propósito** para não poluir o inbox aberto. **Medição no banco:** **0** conversas em produção no estado fantasma (`status='open'` + nenhuma mensagem + `from_me=false`); as 773 no padrão são `closed` (broadcast/import, 19/04→16/09). Nenhum outro fluxo produz o sintoma.
+
+## Inbox "Gerar Áudio com IA" sem Fish Audio e sem estrela de favorito (22/09/2026)
+
+**Sintoma relatado:** no `/inbox`, o diálogo "Gerar Áudio com IA" não puxava Fish Audio nem mostrava a estrela de favoritos.
+
+**Causa (falsa positiva de bug — produção desatualizada):** a imagem `zapflix-tech:latest` em produção tinha 43h e não continha o dialog novo (galeria Fish + favorito-na-conversa). A string única do dialog ("Amostra e geração são grátis via OpenRouter") não existia nos bundles do container (só a do Estúdio, "Preview e geração…").
+
+**Fix:** rebuild do working tree + `docker service update --image zapflix-tech:latest --force wp_zapflix-web` (22/09 22:52 UTC, build_time). Pós-deploy confirmado: galeria Fish em 3 chunks no bundle de produção, `/api/fish/voices` respondendo, app saudável. Detalhes em `feature-studio-voz.md`.
+
+**Lição:** quando o relato envolver feature "nova", conferir primeiro o bundle em produção (e a idade da imagem `docker images` / `docker ps Up`) antes de suspeitar do código.

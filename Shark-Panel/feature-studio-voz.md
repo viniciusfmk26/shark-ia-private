@@ -118,3 +118,15 @@ Deploy: `docker build -t zapflix-tech:latest /root/Zapflix-Tech` + `docker servi
 ⚠️ Build manual sem `--build-arg GIT_SHA` → `/api/version` mostra `git_sha: "unknown"` (build_time correto). Comportamento conhecido — o `scripts/deploy-web.sh` grava o SHA do HEAD (que não inclui mudanças não commitadas, CC-10).
 
 Validação: `npx tsc --noEmit` limpo; `vitest` 467/469 (2 falhas pré-existentes em checkout/inbox, confirmadas no HEAD limpo; não são desta mudança).
+
+## Voz Fish favorita no dialog "Gerar Áudio com IA" (22/09/2026 23:10)
+
+Dono pediu: "tem como favoritar a mensagem de voz do fish audio na tela de inbox para usar sempre aquela voz". O favorito que existia era só para ElevenLabs (`el_voice_<workspace_id>` no localStorage) — para Fish não havia.
+
+Implementado no `components/media/generate-audio-dialog.tsx` (usado no Inbox, Templates e Guided Funnels):
+- Nova chave localStorage **`fish_voice_<workspace_id>`** guardando `{ id, title }` da voz Fish favorita.
+- **Pré-seleção automática**: ao abrir o dialog com motor Fish, quando a galeria carrega e a voz favorita aparece na página atual, ela já vem marcada (✓) — "usar sempre aquela voz".
+- **Botão estrela "Favoritar"** no header da galeria Fish: com a voz Fish selecionada, marca como favorita; se a favorita já está selecionada, o mesmo botão vira "Favorita" e remove o favorito (toggle). Mostra hint "★ Voz favorita: <título> — selecionada automaticamente".
+- Reset: fechar o dialog limpa a seleção da galeria, mas o favorito persiste no localStorage e volta a pré-selecionar na próxima abertura.
+
+Validação: `npx tsc --noEmit` limpo; `vitest` continua 467/469 com as MESMAS 2 falhas pré-existentes (checkout/inbox — no HEAD limpo antes da mudança).

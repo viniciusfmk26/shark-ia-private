@@ -77,13 +77,29 @@ A Meta gera o 555 automaticamente ao criar o WABA; a empresa verificada tem o n�
 
 ---
 
-### BUG-019 — resolveInstanceByPhoneNumberId pega instância DELETADA (duplicidade cloud_phone_number_id) 🔴 PENDENTE (código)
+### BUG-019 — resolveInstanceByPhoneNumberId pega instância DELETADA (duplicidade cloud_phone_number_id) ✅ RESOLVIDO (código) — 25/09/2026
 
 **Identificado em:** 21/09/2026 (durante BUG-018, workspace Shark2)
+**Resolvido em:** 25/09/2026 — commit `176f889a`, sessão [[Sessao-48-2026-09-25-instancia-julia-webhook-workspace-errado]]
 **Severidade:** Alta — quando uma instância Cloud API é deletada sem zerar
 `cloud_phone_number_id` e uma NOVA instância é criada com o mesmo número, o
 webhook da Meta cai na instância fantasma (deleted, com token antigo/morto) e
 as mensagens somem do painel. Causou o sintoma "o tubarão não funciona".
+
+**Confirmação de recorrência (25/09):** o mesmo bug voltou pela Júlia
+(`1155677294305122`), agora com **consequência mais grave**: não só a instância
+fantasma, mas o **workspace errado**. Os 212 webhooks da Júlia foram gravados no
+Shark Panel em vez do Shark 2 — porque o painel **duplica** em vez de mover
+instância entre workspaces, e o `LIMIT 1` sem `ORDER BY` caía na linha deletada.
+
+**Correção definitiva (não era só `status != 'deleted'`):**
+- `resolveInstanceByPhoneNumberId`: `+ deleted_at IS NULL` e `+ ORDER BY updated_at DESC, created_at DESC` (o `LIMIT 1` sem `ORDER BY` devolvia a deletada por TID do índice)
+- Migration `20260925_cloud_phone_number_unique.sql`: `uq_whatsapp_instances_cloud_phone_active (cloud_phone_number_id) WHERE deleted_at IS NULL` — impede a duplicação na raiz (o UNIQUE antigo cobria só `evolution_instance_id` e era parcial)
+- Mesma classe corrigida em `app/api/webhook/route.ts` (2×), `app/api/webhook/cloud/route.ts` (verify), `app/api/cron/sync-instance-profiles/route.ts`, `app/api/payments/amplopay-webhook/route.ts` (3×)
+
+**Dados (Júlia):** 189 conversas + 6 auto_campaigns + 9 template_instances + 1 chatbot_flow migrados para a instância ativa; linha duplicada removida; 1 registro em `instance_migrations`. **Zero** perda de histórico.
+
+> ⚠️ O "fix de dados" antigo (`SET cloud_phone_number_id = NULL` na deletada) resolve o sintoma mas é **LOSSY** — se paired com `DELETE` derruba as conversas por `ON DELETE CASCADE`. O caminho certo é migrar as conversas primeiro.
 
 **Arquivo:** `app/api/webhook/cloud/route.ts` → `resolveInstanceByPhoneNumberId`:
 ```sql

@@ -67,6 +67,30 @@ para distribuir carga via `app/api/rotation/`.
    ```
    Fix definitivo (deploy): `resolveInstanceByPhoneNumberId` deve filtrar `status != 'deleted'`.
 
+7. **RESOLVIDO em 25/09/2026 — ver [[Sessao-48-2026-09-25-instancia-julia-webhook-workspace-errado]].** O fix real foi mais amplo que `status != 'deleted'`:
+   - `app/api/webhook/cloud/route.ts` → `+ deleted_at IS NULL` e `+ ORDER BY updated_at DESC, created_at DESC` no `resolveInstanceByPhoneNumberId`. **`LIMIT 1` sem `ORDER BY` era o vilão** — devolvia a linha deletada por ordem de TID no índice.
+   - Verificar token: `+ deleted_at IS NULL` no mesmo arquivo.
+   - `app/api/webhook/route.ts` → 2 queries de `groups.upsert` (Evolution) `+ deleted_at IS NULL`.
+   - `app/api/cron/sync-instance-profiles/route.ts` → `+ deleted_at IS NULL`.
+   - `app/api/payments/amplopay-webhook/route.ts` → 3 queries `+ deleted_at IS NULL` (caminho de PIX).
+   - Migration `20260925_cloud_phone_number_unique.sql` → índice
+     `uq_whatsapp_instances_cloud_phone_active (cloud_phone_number_id) WHERE cloud_phone_number_id IS NOT NULL AND deleted_at IS NULL`
+     → **impede a duplicação na raiz**. Era este índice que faltava: o UNIQUE antigo cobre só `evolution_instance_id` e é parcial.
+
+   ⚠️ **Zerar o `cloud_phone_number_id` da deletada (fix de dados antigo) é insuficiente e LOSSY** — quebra o histórico de `conversations` se for paired com `DELETE`. O caminho certo é **migrar as conversas** para a instância ativa e só então remover a duplicata (189 conversas no caso da Júlia).
+
+### 🔴 REGRA PERMANENTE — resolução de instância por identificador externo
+
+> Toda query que resolve instância por `cloud_phone_number_id`, `evolution_instance_id`, `name` ou `phone_number` **precisa de `deleted_at IS NULL` + `ORDER BY` determinístico**.
+>
+> Sem isso, um soft-delete deixa a linha **invisível pro painel** mas **visível pro webhook** — e o `LIMIT 1` escolhe a linha errada **silenciosamente** (sem log, sem erro). O sintoma é "instância conectada que não recebe nada": o envio funciona (busca por `id`), só a entrada quebra.
+>
+> **Diagnóstico em 30 segundos:** copiar a query de resolução do código e rodar na mão contra produção. Se tiver `LIMIT 1` sem `ORDER BY`, é bug. Se a linha devolvida não for a que está `connected`, achou.
+
+### ⚠️ Mover instância entre workspaces NÃO existe no painel
+
+O painel **duplica** em vez de mover (foi exatamente o que causou o BUG-019 na Júlia). A tabela `instance_migrations` existe e `app/api/instances/route.ts` já lê `active_migration_to`, mas **só é populada em caso de ban** — nunca em mudança de workspace. Rastreabilidade e conversa órfã garantidas. **Candidato a feature (pendência aberta).**
+
 **⚠️ Comportamento esperado — conversa única por contato:** mensagens de teste do MESMO
 número de origem para 2 instâncias do mesmo workspace caem na MESMA conversa (1 contato =
 1 conversa por workspace) e o worker migra a conversa entre instâncias (`conv_migrated` no

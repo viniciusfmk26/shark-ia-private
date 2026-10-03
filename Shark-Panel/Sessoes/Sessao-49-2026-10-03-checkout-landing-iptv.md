@@ -78,3 +78,53 @@ Dois testes pré-existentes seguem fora, em arquivos não tocados por esta featu
 ## Não relacionado
 
 - WIP do CRM (Fases 0–2) segue preservado fora dos commits, bloqueado pelos 101 vínculos cross-tenant. Não misturar com esta entrega.
+
+---
+
+# Continuação da Sessão 49 — correção do "não gera QR Code" e empresa não selecionada
+
+O dono reportou dois sintomas: a empresa não era selecionada e o checkout não gerava QR Code com a chave PIX. Eram três causas distintas; a que ele percebia como "o QR" era a última.
+
+Commits `ac3bfbd7` e `6478901c`, imagem `zapflix-tech:iptv-checkout-v4`. Sem push remoto; worker sem redeploy e com as oito chaves.
+
+## 1. O formulário nascia sem campo nenhum (isto explicava o silêncio todo)
+
+`app/comprar/iptv/page.tsx` passava `formFields={[]}`, e o `CheckoutForm` renderiza os inputs do comprador a partir desse array (`renderFormFields`). A tela abria sem nome, telefone nem e-mail. O `onSubmit` valida `props.formFields` — vazio significa validação nenhuma — e mandava `buyer: { name: '', phone: '' }`. O zod respondia 400 `invalid_input` **antes de qualquer log do handler**.
+
+É por isso que o diagnóstico foi lento: zero linhas em `checkout_orders` e zero mensagens `[landing-checkout]` nos logs. Não era erro do endpoint, era o endpoint nunca sendo chamado de forma válida.
+
+Pior: as rejeições não carregavam `message`, e o `CheckoutForm` só exibe `data.field` ou `data.message`. O que o cliente lia era "Não foi possível gerar o PIX. Tente novamente." — que não aponta causa nenhuma. Todas as rejeições agora devolvem `message` legível, e `invalid_input` devolve também o campo inválido.
+
+## 2. O gateway devolve `pix.base64` vazio — esse é o QR
+
+Medido com chamada direta ao AmploPay usando as credenciais de `checkout_config`: a resposta é `{fee, transactionId, status, order, pix}`, e `pix` tem apenas `code` e `base64` — com `base64` de **len 0**. O BR Code chega normal (178 chars, `00020101021226900014br.gov.bcb.pix…`); a imagem não chega.
+
+O `PixModal` só desenha o `<img>` quando `pixQrcode` é truthy, então a tela mostrava apenas o campo de copiar e cola. O sintoma "não gera o QR Code com a chave PIX" era literal: tinha a chave, não tinha a imagem.
+
+Correção: a chave PIX é o próprio BR Code devolvido pelo gateway, então a imagem é renderizada a partir dele com a lib `qrcode` — que já é dependência do projeto e já faz exatamente isso em `lib/pix-page/create.ts`. Ordem: `pix.base64` → `pix.image` (a lib compartilhada `lib/payments/amplopay.ts` tenta as duas) → geração local. String vazia ou só espaços não conta como imagem, senão o `<img>` some de novo.
+
+Em produção, depois da correção: `pix_qrcode` com 5958 chars, decodificando em PNG válido de 4452 bytes com assinatura correta.
+
+**Guard validado por mutação:** removendo o fallback do QR, dois dos quatro testes novos falham.
+
+## 3. Aprendizado colateral: o AmploPay valida o documento
+
+Uma chamada diagnóstica com CPF falso foi recusada com `422 GATEWAY_INVALID_ARGUMENT — Documento inválido`. Confirma que o `generateCpf()` do endpoint é obrigatório e precisa sair com dígito verificador válido. Era o motivo de eu ter alinhado o gerador com o `/api/checkout/create-pix`.
+
+## Empresa: não era bug de tela, era dado faltando
+
+O seletor vinha só com "Informar dados da empresa responsável" e o botão de sorteio desabilitado. `getLandingSources()` filtra `companies` por `workspace_id` da landing, e a landing `shark2-f8cee1179b39` está em **Shark2** (`4a815ba6-e45b-4836-9f22-23c1c3d0370b`), que tem **zero empresas**. As duas cadastradas estão em **Shark Panel** (`00000000-…-0002`): `08.081.753 CAREN MICHELE BORDIGNON` e `66.644.419 VINICIUS DOS SANTOS CLEMENTE`.
+
+O botão de sorteio exige empresa já usada como responsável em página salva do mesmo workspace, então em workspace novo ele nunca acende. O editor agora explica isso na tela quando a lista vem vazia.
+
+**A escolha do CNPJ que prestará o serviço é do dono** — é identificação legal do prestador, o código não decide por ele. Pendente de decisão: cadastrar a empresa em Shark2, copiar as linhas existentes para Shark2, ou o dono preencher razão social e CNPJ manualmente e republicar.
+
+Não fiz fallback para o workspace do Shark Panel: `getLandingSources()` serve landings de qualquer tenant, e listar empresas de outro workspace expõe CNPJ de terceiros.
+
+## Ordens de teste criadas no diagnóstico
+
+Duas ordens reais no AmploPay (5203 e 5205, R$ 19,90, nunca pagas, expiram em 15 min; não provisionam acesso nem disparam WhatsApp porque o webhook só roda na confirmação do pagamento). Ambas marcadas `status='cancelled'` com nota de diagnóstico, preservando o rastro. Nenhuma venda real afetada.
+
+## Testes
+
+102 verdes na suíte (landing, checkout, QR, atribuição, upload, lowticket, amplopay, middleware). `test/iptv-landing-checkout-page.test.ts` trava formFields não vazio, campos obrigatórios e `message` em cada rejeição.

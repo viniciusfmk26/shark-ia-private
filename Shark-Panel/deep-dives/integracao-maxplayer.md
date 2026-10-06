@@ -968,3 +968,62 @@ removido).
 **Decisão pendente do dono:** rebuild/deploy do `26540467`. Hoje não muda
 nada em produção (integração desligada, 0 ativações), então pode esperar o
 próximo deploy.
+
+## 27. Deploy do sigma-commit e o incidente das rotas WIP (06/10/2026, 23h)
+
+O dono autorizou publicar o `26540467`. Segui o **A5.4** (clone limpo):
+
+- `git clone --depth 1 file:///root/Zapflix-Tech /root/build-web-$(date +%s)`
+- Conferi que o clone tinha só commits e que **nenhum arquivo rastreado**
+  importa `docs/openapi/crm-integration.json` (a rota que o importa é a WIP
+  `[...path]`, não rastreada → não está no clone → build não quebra).
+- `docker build -t zapflix-tech:latest`, `docker service update --force`.
+- SHA bateu (`2654046`), rotas MaxPlayer/CRM ok. Tag `maxplayer-sigma-commit`.
+
+### Achado (por quê parei e reportei)
+
+Após deploy, a **imagem nova** não tinha rotas que a **imagem anterior**
+(`maxplayer-review-fixes`, construída do **working tree**) tinha:
+
+| Rota | Antiga | Clone limpo |
+|---|---|---|
+| `/oneclick`, `/api/oneclick` | ✅ | ❌ |
+| `/api/iptv/ativeapp` | ✅ | ❌ |
+
+Causa: o repo tem **features lançadas porém nunca commitadas** (ATIVEAPP tem
+`docs/evidence/ativeapp-release-20261005.json`, mas `app/api/iptv/ativeapp/`
+é `??`). Os deploys anteriores vinham do working tree (isolando só a rota WIP
+`[...path]`), então esse trabalho "vivia" só na imagem.
+
+**Detalhe importante:** o 400 transitório em `payment-metrics` logo após o
+`service update` era artefato da convergência (container novo subindo), não
+código — sumiu sozinho e não reproduziu.
+
+### Decisão do dono: A agora, depois B
+
+**A — reconstruir do working tree** (como sempre foi feito): restore do WIP,
+uma `payment-metrics` recorrente. **Executei**:
+
+1. `mv "app/api/external/crm/v1/[...path]" /tmp/opencode/wip/` (rota
+   problemática nunca vai para produção sem revisão)
+2. `docker build -t zapflix-tech:latest` do working tree
+3. `mv` de volta (restauração da rota)
+4. `docker service update --image zapflix-tech:latest --force`
+5. Verificado: `/oneclick` → 307, `/api/oneclick` → 401, `/api/iptv/ativeapp`
+   → 401, maxplayer-expire → 401, integrations/pulse → 401 `INVALID_KEY`,
+   `markConverted` no chunk, `payment-metrics` 401 estável (3x), logs sem erro
+   novo. Tag `working-tree-restore-20261006`.
+
+**B — depois (pendente):** commitar o trabalho não commitado dos outros agents
+(44 modificados + 81 não rastreados) para o clone limpo parar de regredir
+produção. Não é algo que eu faça sozinho sem revisão do dono/agents.
+
+### Estado final
+
+- `latest` = `working-tree-restore-20261006` (working tree + sigma).
+- Rollbacks: `maxplayer-sigma-commit` (clone limpo), `maxplayer-review-fixes`
+  (estado anterior).
+- Working tree **intacto** (81 não rastreados; rota `[...path]` restaurada).
+- Único aviso nos logs: `[AmploPay Webhook] SSE emit error … column
+  c.profile_pic_url does not exist` — **não-fatal**, pré-existente (código
+  alheio em WIP que consulta coluna inexistente).

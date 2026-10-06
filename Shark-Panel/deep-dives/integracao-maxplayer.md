@@ -11,10 +11,11 @@
 > agents** no mesmo worktree, um deles misturado no mesmo arquivo que o
 > MaxPlayer.
 >
-> 📌 **Seções 22–25 = revisão completa + correções dos 4 achados graves**
+> 📌 **Seções 22–26 = revisão completa e TODOS os 13 achados corrigidos**
 > (corrida pagamento×cron, username travado, throttle morto, sem orçamento de
-> tempo), com as provas de que os testes pegam cada bug. 53 testes, zero
-> regressão, produção atualizada.
+> tempo, `delete_error` ambíguo, texto de 4h fixo, comentários falsos, vazamento
+> de `error.message`, código morto, `Number('')`=0). 59 testes, zero regressão,
+> dois commits (`9124e2fa`, `db236692`), produção atualizada.
 
 ---
 
@@ -830,15 +831,16 @@ correções já estão no caminho de execução.
 
 ## 25. Pendências
 
-**Ainda não corrigidos (#5 a #13)** — ver tabela da seção 22. São de baixa e
-média severidade; nenhum trava operação.
+~~**Ainda não corrigidos (#5 a #13)**~~ → **corrigidos na seção 26.** Ver tabelas
+da seção 22 (achados) e 26 (correções). O #8 não era reproduzível.
 
 **Decisões do dono:**
 
-1. **Commit** — 139 arquivos modificados por ≥2 agents. Recomendação: commitar
-   só arquivos 100% meus (novos, exceto `sigma-activate/route.ts`, que está
-   MISTURADO: meu bloco `markConverted` ~17 linhas + trabalho alheio de
-   60+/80−). Deixar `sigma-activate` para depois do alinhamento.
+1. ~~**Commit**~~ → **feito** (`9124e2fa` + `db236692`), ver seção 26. Foram
+   commitados só arquivos 100% meus. O `sigma-activate/route.ts` continua
+   **de fora**: está MISTURADO (meu bloco `markConverted` ~20 linhas + trabalho
+   alheio de 60+/80−). Meu bloco foi conferido como encaixável no HEAD
+   (`workspaceId` l.166, `username` l.205) — falta decidir se extrair só ele.
 2. **`greek-crm.site`** — diagnosei que **não há vhost nem painel Xtream** no
    nginx de `87.76.215.207`: porta 80 devolve a página padrão do nginx, porta
    443 serve cert `CN=zxcvb.sbs` para qualquer SNI, `/player_api.php` → 404 e
@@ -853,3 +855,80 @@ média severidade; nenhum trava operação.
 **Estado:** produção com `enabled=false`, 0 ativações, `domain_id`
 `1790914192685289333`. Nenhuma exclusão real já aconteceu (a API nunca foi
 chamada com um id de cliente).
+
+## 26. Achados #5–#13 corrigidos (06/10/2026, noite)
+
+O usuário aprovou "em lote". Depois da revisão da seção 22, os 8 restantes
+foram corrigidos, testados e publicados.
+
+| # | Achado | Correção |
+|---|---|---|
+| 5 | `delete_error` guardava **dois** significados; a tela chamava falha de **criação** de "exclusão pendente" | Lógica extraída para `components/maxplayer/error-badge.ts` (`activationErrorBadge`) e testada: `active` + id real = "exclusão pendente"; `failed` ou `pending` = "falha na ativação" |
+| 6 | Diálogo dizia "expira em **4 horas**" fixo; `trial_hours` é 1–72 e configurável | Texto sem número, vale para qualquer configuração. O endpoint de config exige **owner/admin** e o botão é do atendente — não dava para buscar o valor sem quebrar para `agent` |
+| 7 | Comentário descrevia idempotência que **não existe**: "o requestId nasce aqui e é reaproveitado" | Comentário corrigido. O `requestId` por envio é **de propósito**: um fixo por diálogo devolveria a reserva `failed` da tentativa anterior e **travaria o retry**. Quem protege é o guard de `iptv_username` + `UNIQUE(workspace_id, request_id)` |
+| 8 | "Cancelar contorna o bloqueio de envio" | **Não reproduzido** — o botão já tinha `disabled={submitting}` e o `onOpenChange` do `Dialog` é neutralizado durante o envio |
+| 9 | `config` GET devolvia `error.message` cru | Passou a usar `maxPlayerResponseError`, igual às outras 3 rotas. `catch (error: any)` virou `unknown` |
+| 10 | "O token volta da API cifrado" — falso | Corrigido: a API **nunca** devolve o token, nem em claro nem cifrado; só a flag `configured` |
+| 11 | `getUser` com `expireDate` hardcoded `null` | **Removido** — morto (nunca chamado em lugar nenhum, sem teste) |
+| 12 | Typo `ébelt-and-suspenders` | Corrigido **e** o resto do comentário também: dizia que sem o header "a aba mostraria o token de outro workspace", mas o token nunca aparece |
+| 13 | `Number('')` = 0 → o schema rejeita → "Dados inválidos" genérico | Guard `numOr(raw, fallback)`: vazio mantém o anterior. Nos 3 campos numéricos |
+
+### Descoberta paralela: testes `.tsx` nunca rodam
+
+`vitest.config.ts` tem `include: ['test/**/*.test.ts']` — **não** cobre
+`.test.tsx`. Ou seja, `test/inbox-audio-dialog.test.tsx` (de outro agent) **nunca
+executou**. Isso é de outro escopo, mas explica por que a correção do #5 não
+pode ser um teste de componente: a lógica foi extraída para um `.ts` puro
+(`error-badge.ts`) justamente para poder ser testada de verdade.
+
+### Prova de que os testes pegam os bugs
+
+| Prova | Reversão | Resultado |
+|---|---|---|
+| #5 | `activationErrorBadge` voltando a devolver "exclusão pendente" para tudo | **3 testes falham** |
+| #13 | (schema já reprova `0`; teste novo cobre os 3 campos) | `maxDevices: 0` passava despercebido |
+
+### Verificação
+
+| Checagem | Resultado |
+|---|---|
+| `tsc --noEmit` (working tree) | exit 0 |
+| `tsc --noEmit` (**clone limpo** do HEAD) | exit 0 |
+| Testes MaxPlayer | **59/59** (working tree **e** clone limpo) |
+| Suíte completa | **1160 pass / 21 fail / 59 skipped** |
+| `diff` das falhas vs. baseline | **idêntico — mesmas 21 pré-existentes** |
+| Regressão | **zero** |
+
+Evolução dos testes: 46 → 53 (correções #1–#4) → **59** (#5–#13).
+
+### Commits
+
+| Commit | Conteúdo |
+|---|---|
+| `9124e2fa` | 23 arquivos da integração (páginas, rotas, lib, cron, migration, testes, `.dockerignore`) |
+| `db236692` | 8 arquivos dos achados #5–#13 (+ `error-badge.ts`) |
+
+Ambos verificados por **clone limpo** (`git clone --depth 1 file://…`), como
+manda o HANDOFF A5.4. O `app/api/iptv/sigma-activate/route.ts` continua **fora**:
+está misturado com o refactor de outro agent, embora meu bloco `markConverted`
+(~20 linhas) tenha sido conferido como encaixável no HEAD — `workspaceId`
+(l.166) e `username` (l.205) existem lá.
+
+### Deploy
+
+`zapflix-tech:maxplayer-review-fixes` → `latest` em `wp_zapflix-web`, serviço
+convergiu. Verificado dentro do container (porta 80): todas as rotas respondem
+401/307 corretamente, logs sem erro novo. Marcadores confirmados na imagem
+compilada: `falha na ativação`, `Este teste expira` presente e
+`"O teste expira em 4 horas"` **ausente**, `customers/` ausente (`getUser`
+removido).
+
+### O que ainda falta (não é código)
+
+1. **`greek-crm.site`** — não há vhost nem painel Xtream no nginx de
+   `87.76.215.207`. Precisa da porta/upstream do painel, ou confirmação de que
+   deve substituir o `zxcvb.sbs`.
+2. **Api-Token** — placeholder, `enabled=false`. Rotacionar antes de ativar.
+3. **`sigma-activate`** — alinhar com o outro agent antes de commitar.
+4. **Descobrir se outros `.test.tsx` existem** e não rodam (fora do escopo
+   MaxPlayer).

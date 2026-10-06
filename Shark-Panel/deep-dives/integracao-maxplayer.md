@@ -5,6 +5,12 @@
 > O cliente recebe as credenciais do teste do **Shark Titan** e, se o operador
 > ativar o botão, o mesmo acesso passa a existir também no app MaxPlayer.
 
+> 📌 **Leia a seção 21 antes de mexer em build.** Ela registra que o build
+> quebrava porque se buildou do working tree — regra que o `HANDOFF` (A5.4)
+> proíbe — e que há **139 arquivos de trabalho sem commit de pelo menos 2
+> agents** no mesmo worktree, um deles misturado no mesmo arquivo que o
+> MaxPlayer.
+
 ---
 
 ## 1. O que foi pedido
@@ -504,6 +510,9 @@ Ao isolar código de terceiros para o build, excluir o **menor conjunto
 possível** e conferir o que a imagem antiga tinha antes de subir. Um `mv`
 amplo barato no trabalho transforma-se em porta quebrada no cliente.
 
+> **Atualizado em 06/10:** a causa RAIZ estava mais em cima — eu buildei do
+> working tree, que o `HANDOFF` proíbe. Detalhado na seção 21.
+
 ---
 
 ## 18. Bug de UX encontrado na tela
@@ -544,3 +553,114 @@ Teste em `test/maxplayer-ui.test.ts`.
 
 Ainda **não validado em produção**, porque o host não responde: `POST /users`,
 `DELETE /users/{id}` e a mensagem ao cliente.
+
+---
+
+## 21. Causa raiz do build — e a descoberta inconveniente
+
+### O fix (Opção B)
+
+`.dockerignore` era linha `docs` puro. Criada exceção pontual:
+
+```gitignore
+docs
+!docs/openapi/crm-integration.json
+README.md
+```
+
+Provado com dois probes **antes** do build real:
+
+- `COPY docs/openapi/crm-integration.json` → **passou** (entra na imagem).
+- `COPY docs /d` → trouxe **só** `openapi/crm-integration.json`, 88 KB.
+  `docs/manus-sales.json` e todo o resto **continuam fora**.
+
+Depois build de verdade com o working tree **inteiro, sem mover nada**:
+
+```
+zapflix-tech:dockerignore-fix
+```
+
+Conteúdo conferido na imagem: 3 rotas em `crm/v1`, 5 rotas MaxPlayer,
+página `integrações`, `/app/docs` só com o JSON. `.dockerignore` é tracked e
+não tinha diff — o fix é a única mudança.
+
+### A descoberta
+
+Rodei contra o `HEAD` para saber se o problema era do projeto ou meu:
+
+```bash
+git ls-tree -r HEAD --name-only | grep external/crm/v1
+# integrations/pulse/events/route.ts
+# payment-metrics/route.ts          <- [...path] NÃO está em HEAD
+
+git grep -c "@/docs/" HEAD -- '*.ts' '*.tsx'
+# 0 -> nenhum
+```
+
+**O `HANDOFF` tem razão e eu ignorei.** Ele diz:
+
+> Web a partir de CLONE LIMPO (nunca do working tree, que tem WIP) — seção A5.4
+
+Se eu tivesse seguido o fluxo oficial, o build **nunca teria falhado**: a rota
+`[...path]` que importa `@/docs` só existe no working tree do outro agente, não
+em `HEAD`. O problema foi causado por eu buildar do working tree — exatamente o
+que o `HANDOFF` proíbe em duas seções (A5.4 e a lista de armadilhas, item 5).
+
+O fix do `.dockerignore` continua válido (defesa: o build do working tree passa
+a ser seguro), mas **não era a regra que estava errada — eu que não a segui.**
+
+### Por que não commitar por conta própria
+
+`git status` mostra **139 arquivos** modificados. Verifiquei os que são meus:
+
+| Arquivo | Autor |
+|---|---|
+| `lib/maxplayer/*`, `app/api/iptv/maxplayer/*`, `app/api/cron/maxplayer-expire/*` | **Meu** (novo) |
+| `components/maxplayer/*`, `components/inbox/maxplayer-activate-dialog.tsx` | **Meu** (novo) |
+| `app/(dashboard)/iptv/integrações/`, `test/maxplayer-*.test.ts` | **Meu** (novo) |
+| `scripts/run-crons.sh`, `supercronic.cron` | **Meu** (M) |
+| `components/layout/sidebar-nav.tsx` | **Meu** — 2 linhas (M) |
+| `.dockerignore` | **Meu** — 6 linhas (M) |
+| `app/api/iptv/sigma-activate/route.ts` | **MISTURADO** |
+| resto dos 139 | outro agent |
+
+`sigma-activate` tem **60+/80−**. Eu acrescentei só o bloco `markConverted`
+(~17 linhas). O resto — remoção do `PACKAGE_ID_BY_PLAN`, troca de
+`ACTIVE_PACKAGE_SQL` por `resolvePanelPackage` — **é de outro agent**.
+
+Commitar esse arquivo inteiro seria entregar trabalho alheio como meu, sem
+revisão. Por isso não commito sem alinhar.
+
+### Verificação da suíte inteira
+
+```
+npx tsc --noEmit -p .   -> exit 0
+npx vitest run          -> 1147 pass / 21 fail / 59 skipped (1227)
+```
+
+Dos 21: a grande maioria pede banco de laboratório (`DATABASE_URL`,
+`*_TEST_DATABASE_URL`, `SKIP_DB_SCHEMA_TESTS=1`) — esperado fora do CI.
+
+**3 falhas são reais**, então comparei com o `HEAD` limpo (clone em
+`/root/opencode-base-*`, removido depois):
+
+| Teste | HEAD limpo | Working tree |
+|---|---|---|
+| `checkout.test.ts > rejects missing required fields` | **falha** | **falha** |
+| `inbox.test.ts > enqueues job with { text }` | **falha** | **falha** |
+| `settings.test.ts` (Client/Server Component) | **falha** | **falha** |
+
+Mesmo resultado nos dois: `3 failed / 2 failed tests / 7 passed`.
+**Pré-existentes, não meus.** Regressão minha: zero.
+
+### Verificação final do ar
+
+| Checagem | Resultado |
+|---|---|
+| `tsc --noEmit` | exit 0 |
+| Testes MaxPlayer | 46/46 |
+| Build sem mover nada | ✅ `dockerignore-fix` |
+| Imagem em produção | `zapflix-tech:maxplayer-page-v2` |
+| Cron | `maxplayer-20261006` rodando |
+| Rotas CRM existentes | 415/401 — iguais à imagem antiga |
+| Página | `page.js` presente |

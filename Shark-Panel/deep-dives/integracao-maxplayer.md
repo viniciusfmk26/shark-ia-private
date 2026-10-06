@@ -1001,8 +1001,8 @@ código — sumiu sozinho e não reproduziu.
 
 ### Decisão do dono: A agora, depois B
 
-**A — reconstruir do working tree** (como sempre foi feito): restore do WIP,
-uma `payment-metrics` recorrente. **Executei**:
+**A — reconstruir do working tree** (como sempre foi feito): publicação com o
+WIP de volta. **Executei**:
 
 1. `mv "app/api/external/crm/v1/[...path]" /tmp/opencode/wip/` (rota
    problemática nunca vai para produção sem revisão)

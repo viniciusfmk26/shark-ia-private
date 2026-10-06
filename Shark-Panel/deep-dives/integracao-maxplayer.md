@@ -298,6 +298,9 @@ Todas as rotas filtram `workspace_id` e usam `getActiveWorkspaceId()`.
 
 ## 10. Estado em produção (06/10/2026)
 
+> ⚠️ Estado do primeiro deploy. O estado final desta etapa, incluindo a
+> página de Integrações e a correção de regressão, está na seção 20.
+
 | Item | Estado |
 |---|---|
 | Migration | Aplicada em `wp_zapflix-db` |
@@ -422,3 +425,122 @@ Para isolar o problema, as rotas de `crm/v1` foram movidas para fora durante o
 build e **restauradas em seguida**. Vale confirmar com o dono/agente se o
 `crm-integration.json` deve sair do `.dockerignore` ou se a rota deve ler o
 arquivo de outro lugar.
+---
+
+## 16. Página de Integrações
+
+Adicionada em 06/10/2026, pedido do dono ("pode fazer a pagina").
+
+- **Rota:** `/iptv/integrações` (com til: `integrações`)
+- **Menu:** lateral, grupo **IPTV**, depois de *Planos*. Ícone `Plug`.
+- **Acesso:** `owner` e `admin` — mesma regra do resto do grupo IPTV.
+
+Duas abas:
+
+### Aba MaxPlayer — `components/maxplayer/settings.tsx`
+
+| Campo | Observação |
+|---|---|
+| Habilitar MaxPlayer | `enabled`. O cron só roda em workspaces `enabled=true` |
+| Api-Token | Input de senha. Voltar a salvar sem digitar mantém o token atual |
+| Domain ID | Obrigatório. Sem ele o botão Salvar fica desabilitado |
+| Aparelhos / Perfis | Limites 1–5 (medido no provedor) |
+| Horas antes de excluir | 1–72, padrão 4 |
+| Consultar conta e domínios | Leitura de `/info`, `/status`, `/domains/owned`, `/device-ceiling`, `/profile-ceiling` |
+
+O painel de status alerta explicitamente quando `metered_billing` está ligado —
+é o aviso de que a exclusão é responsabilidade do Shark Panel — e quando o
+Domain ID configurado **não aparece mais** em `/domains/owned`.
+
+O token nunca chega ao navegador. O GET devolve só `configured: true/false`,
+como no AtiveApp.
+
+### Aba Ativações — `components/maxplayer/activations.tsx`
+
+Histórico com `account_username`, status, ativado, expirar e ID MaxPlayer.
+Mostra `delete_error` como "exclusão pendente" quando o DELETE falhou.
+
+**Não há botão de "excluir agora".** De propósito: a remoção é contrato das 4h
+e o critério é `active` + vencido, avaliado pelo cron. Um segundo caminho manual
+para o mesmo efeito é exatamente como cliente pago acaba apagado por engano.
+Quem renovou vira `converted` e a decisão fica centralizada.
+
+---
+
+## 17. Regressão que eu causei (e como corrigi)
+
+Ao isolar o código WIP que quebrava o build, movi o diretório **inteiro**
+`app/api/external/crm/v1/` para fora antes de construir a imagem — e levei
+junto `integrations/` e `payment-metrics/`, que **são tracked e estavam em
+produção**. A imagem `zapflix-tech:maxplayer-page-20261006` subiu sem essas
+duas rotas.
+
+Detectado comparando o conteúdo das imagens:
+
+```bash
+docker run --rm --entrypoint sh zapflix-tech:maxplayer-page-20261006 -c 'ls /app/app/api/external/crm/v1/'
+# sem nada
+docker run --rm --entrypoint sh zapflix-tech:ativeapp-20261005 -c 'ls /app/app/api/external/crm/v1/'
+# integrations  payment-metrics
+```
+
+Corrigido na imagem seguinte `zapflix-tech:maxplayer-page-v2`, construída
+excluindo **apenas** `app/api/external/crm/v1/[...path]/` (único não tracked).
+Verificação das rotas que não podem regredir:
+
+| Rota | Antes | Depois |
+|---|---|---|
+| `POST .../integrations/pulse/events` | `415` | `415` |
+| `GET .../payment-metrics` | `401` | `401` |
+| `GET /api/external/metricas` | `401` | `401` |
+| `GET /api/external/pedidos` | `401` | `401` |
+
+`401` e `415` são respostas normais (não autenticado / sem content-type), não
+404. **Nenhuma rota existente está quebrada.**
+
+### Lição
+
+Ao isolar código de terceiros para o build, excluir o **menor conjunto
+possível** e conferir o que a imagem antiga tinha antes de subir. Um `mv`
+amplo barato no trabalho transforma-se em porta quebrada no cliente.
+
+---
+
+## 18. Bug de UX encontrado na tela
+
+`apiToken: z.string().trim().min(1).optional()` reprova string vazia, mesmo
+com `optional()`. Ou seja: **trocar só o Domain ID, sem redigitar o token,
+era recusado** — e o `saveConfig` teria gravado `''` em vez de manter o token
+anterior.
+
+Corrigido com preprocess que vira `''` em `undefined` antes da validação.
+Teste em `test/maxplayer-ui.test.ts`.
+
+---
+
+## 19. Testes
+
+| Arquivo | Testes |
+|---|---|
+| `test/maxplayer-client.test.ts` | 13 |
+| `test/maxplayer-expiry.test.ts` | 6 |
+| `test/maxplayer-service.test.ts` | 18 |
+| `test/maxplayer-ui.test.ts` | 9 |
+| **Total** | **46 passando** |
+
+---
+
+## 20. Estado final em produção (06/10/2026)
+
+| Item | Estado |
+|---|---|
+| Imagem web | `zapflix-tech:maxplayer-page-v2` |
+| Página | `/iptv/integrações` — `page.js` presente na imagem |
+| Menu | lateral → IPTV → Integrações |
+| Regressão CRM | Corrigida (rotas existentes conferidas) |
+| Cron | `*/10` rodando |
+| Config | `enabled = false`, `domain_id` preenchido |
+| Testes | 46 |
+
+Ainda **não validado em produção**, porque o host não responde: `POST /users`,
+`DELETE /users/{id}` e a mensagem ao cliente.

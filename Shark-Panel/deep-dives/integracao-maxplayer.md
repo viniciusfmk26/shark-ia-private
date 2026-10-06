@@ -836,18 +836,17 @@ da seção 22 (achados) e 26 (correções). O #8 não era reproduzível.
 
 **Decisões do dono:**
 
-1. ~~**Commit**~~ → **feito** (`9124e2fa` + `db236692`), ver seção 26. Foram
-   commitados só arquivos 100% meus. O `sigma-activate/route.ts` continua
-   **de fora**: está MISTURADO (meu bloco `markConverted` ~20 linhas + trabalho
-   alheio de 60+/80−). Meu bloco foi conferido como encaixável no HEAD
-   (`workspaceId` l.166, `username` l.205) — falta decidir se extrair só ele.
-2. **`greek-crm.site`** — diagnosei que **não há vhost nem painel Xtream** no
-   nginx de `87.76.215.207`: porta 80 devolve a página padrão do nginx, porta
-   443 serve cert `CN=zxcvb.sbs` para qualquer SNI, `/player_api.php` → 404 e
-   só 80/443 estão abertas. Falta do dono: porta/upstream do painel, ou se
-   `greek-crm.site` deve substituir `zxcvb.sbs`.
-3. **Api-Token** — nunca gravado; banco tem placeholder e `enabled=false`.
-   Antes de ativar, rotacionar o token.
+1. ~~**Commit**~~ → **feito** (`9124e2fa` + `db236692` + `26540467`), ver
+   seção 26. Foram commitados só arquivos 100% meus, e o `sigma-activate`
+   foi separado por `hash-object` + worktree (autorizado pelo dono — método
+   completo na seção 26).
+2. ~~**`greek-crm.site`**~~ → **resolvido como não-problema**: `domain_host`/
+   `domain_port` nunca são usados em requisição, só gravados e exibidos.
+   Verificado também que `87.76.215.207` não é o nosso servidor
+   (`69.62.91.79`). Nada a fazer.
+3. **Api-Token** — nunca gravado; banco tem placeholder (`length 31`) e
+   `enabled=false`. Antes de ativar, rotacionar o token — ele transitou no chat.
+   Colar na tela de Integrações e ligar `enabled` (isso é decisão/config do dono).
 4. **Assunção não validada** — `markConverted(workspaceId, username)` assume
    que o `username` final é igual ao `iptv_username` da ativação. Com 0
    ativações no banco, não verificável ainda.
@@ -907,12 +906,32 @@ Evolução dos testes: 46 → 53 (correções #1–#4) → **59** (#5–#13).
 |---|---|
 | `9124e2fa` | 23 arquivos da integração (páginas, rotas, lib, cron, migration, testes, `.dockerignore`) |
 | `db236692` | 8 arquivos dos achados #5–#13 (+ `error-badge.ts`) |
+| `26540467` | `sigma-activate/route.ts` — **só** o bloco `markConverted` (20 linhas) |
 
-Ambos verificados por **clone limpo** (`git clone --depth 1 file://…`), como
-manda o HANDOFF A5.4. O `app/api/iptv/sigma-activate/route.ts` continua **fora**:
-está misturado com o refactor de outro agent, embora meu bloco `markConverted`
-(~20 linhas) tenha sido conferido como encaixável no HEAD — `workspaceId`
-(l.166) e `username` (l.205) existem lá.
+Os dois primeiros foram verificados por **clone limpo** (`git clone --depth 1
+file://…`), como manda o HANDOFF A5.4.
+
+**`sigma-activate/route.ts` — como foi separado (autorizado pelo dono):**
+o arquivo está misturado (meu bloco + refactor alheio de 40+/80−). Para
+commitar **sem tocar** na árvore de trabalho:
+
+1. Extraído o bloco de `markConverted` do working tree (`start`/`end` por
+   marcador) e conferido por guarda: nenhum símbolo do refactor alheio
+   (`panel-package`, `findSigmaMapping`, `renewMappedAccount`,
+   `SigmaProvisionError`, `ACTIVE_PACKAGE_SQL`, `resolvePackageId`) vazou.
+2. Bloco inserido no **HEAD** no mesmo ponto (`// Update plan_type…`) →
+   `git diff --no-index` mostrou **apenas** `+20 linhas`.
+3. Verificação de escopo no HEAD: `logger` importado, `workspaceId` e
+   `username` declarados **dentro** do mesmo `POST`, nenhuma `export` entre
+   o início do `POST` e o ponto de inserção, Δchaves = 2 (função aberta),
+   `markConverted` exportado em `lib/maxplayer/service.ts`.
+4. Stage **sem tocar no working tree**: `git hash-object -w` +
+   `git update-index --cacheinfo 100644,<sha>,<path>`.
+5. Prova de compilação num **worktree separado** (`git worktree add --detach`
+   no HEAD + meu bloco, `node_modules` via symlink) → `tsc --noEmit` **exit 0**.
+   O working tree nunca foi sobrescrito.
+6. Resultado: commit = 20 linhas; o trabalho alheio continua **não commitado**
+   no working tree (`git diff` = 40+/80−).
 
 ### Deploy
 
@@ -925,10 +944,27 @@ removido).
 
 ### O que ainda falta (não é código)
 
-1. **`greek-crm.site`** — não há vhost nem painel Xtream no nginx de
-   `87.76.215.207`. Precisa da porta/upstream do painel, ou confirmação de que
-   deve substituir o `zxcvb.sbs`.
-2. **Api-Token** — placeholder, `enabled=false`. Rotacionar antes de ativar.
-3. **`sigma-activate`** — alinhar com o outro agent antes de commitar.
-4. **Descobrir se outros `.test.tsx` existem** e não rodam (fora do escopo
-   MaxPlayer).
+1. ~~**`greek-crm.site`**~~ → **não é pendência, é não-problema.** Verificado
+   por grep: `domain_host`/`domain_port`/`domain_https` só são **gravados e
+   exibidos** em `lib/maxplayer/service.ts` e `components/maxplayer/settings.tsx`
+   — **nenhum código os usa em requisição**. Tudo vai para
+   `https://api.maxplayer.tv/v3/api/public` usando só o `domain_id`. Confirmado
+   também que o servidor de `87.76.215.207` **não é nosso** (nosso IP é
+   `69.62.91.79`); portas 80/443 abertas mas sem resposta (`code=000`,
+   intermitente). Nada a configurar, ninguém a acionar.
+2. **Api-Token** — placeholder (`length = 31`), `enabled = false`. Foi dado no
+   chat e nunca gravado. Para ativar: colar na tela de Integrações (cifrado
+   com `TOKEN_ENCRYPTION_KEY`) e ligar `enabled`. **Rotacionar antes**, porque
+   transitou no chat.
+3. ~~**`sigma-activate`**~~ → **commitado** (`26540467`), ver acima.
+4. **Descobrir se outros `.test.tsx` existem** e não rodam — o `vitest.config.ts`
+   só inclui `test/**/*.test.ts`. Confirmado que `test/inbox-audio-dialog.test.tsx`
+   nunca rodou. Fora do escopo MaxPlayer (código de outro agent).
+
+**Estado verificado no banco (06/10/2026):** `enabled=f`, token placeholder,
+`domain_id 1790914192685289333`, `domain_host greek-crm.site:80`,
+`max_devices=1`, `max_profiles=1`, `trial_hours=4`, **0 ativações**.
+
+**Decisão pendente do dono:** rebuild/deploy do `26540467`. Hoje não muda
+nada em produção (integração desligada, 0 ativações), então pode esperar o
+próximo deploy.

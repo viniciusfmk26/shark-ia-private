@@ -10,6 +10,11 @@
 > proíbe — e que há **139 arquivos de trabalho sem commit de pelo menos 2
 > agents** no mesmo worktree, um deles misturado no mesmo arquivo que o
 > MaxPlayer.
+>
+> 📌 **Seções 22–25 = revisão completa + correções dos 4 achados graves**
+> (corrida pagamento×cron, username travado, throttle morto, sem orçamento de
+> tempo), com as provas de que os testes pegam cada bug. 53 testes, zero
+> regressão, produção atualizada.
 
 ---
 
@@ -655,6 +660,11 @@ Mesmo resultado nos dois: `3 failed / 2 failed tests / 7 passed`.
 
 ### Verificação final do ar
 
+> ⚠️ **Instantâneo do meio da tarde de 06/10/2026.** Depois dele vieram a
+> revisão completa (seção 22) e as correções #1–#4 (seções 23–24): os testes
+> passaram de 46 para **53** e a imagem em produção virou
+> `zapflix-tech:maxplayer-cron-fix`. Vale o que está na seção 24.
+
 | Checagem | Resultado |
 |---|---|
 | `tsc --noEmit` | exit 0 |
@@ -664,3 +674,182 @@ Mesmo resultado nos dois: `3 failed / 2 failed tests / 7 passed`.
 | Cron | `maxplayer-20261006` rodando |
 | Rotas CRM existentes | 415/401 — iguais à imagem antiga |
 | Página | `page.js` presente |
+
+---
+
+## 22. Revisão completa (06/10/2026, tarde)
+
+O usuário pediu "revise tudo". Os subagentes de QA estavam indisponíveis na
+sessão (`qa` retornou vazio 5×, `general` errou `Model not found:
+openrouter/deepseek/deepseek-v4-flash-latest`), então a revisão foi feita
+manualmente, arquivo a arquivo.
+
+**13 achados.** Aprovados para correção: #1 a #4.
+
+| # | Severidade | Achado |
+|---|---|---|
+| 1 | **ALTO** | Corrida pagamento × cron: apagava cliente que acabou de pagar |
+| 2 | **ALTO** | Username travava para sempre (409 fora da lista + `findUser` devolvendo `null`) |
+| 3 | **MÉDIO** | Throttle do cron não funcionava — dormia DEPOIS de todos os DELETEs |
+| 4 | **MÉDIO** | Sem orçamento de tempo: 50 × 20s = 1000s contra `maxDuration=300` |
+| 5 | MÉDIO | Erro de CRIAÇÃO gravado em `delete_error` → UI mostra "exclusão pendente" |
+| 6 | MÉDIO | Diálogo diz "expira em 4 horas" fixo, mas `trial_hours` é 1–72 |
+| 7 | MÉDIO | Comentário falso: `requestId` nasce dentro do `submit` |
+| 8 | MÉDIO | Cancelar contorna o bloqueio de envio em andamento |
+| 9 | BAIXO | `config` GET devolve `error.message` cru (as outras usam `maxPlayerResponseError`) |
+| 10 | BAIXO | Comentário falso no settings ("o token volta cifrado") |
+| 11 | BAIXO | `expireDate` hardcodado `null` |
+| 12 | BAIXO | Typo `ébelt-and-suspenders` |
+| 13 | BAIXO | `Number('')` = 0 no settings → erro genérico do schema |
+
+## 23. Correções aplicadas (#1 a #4)
+
+### #1 — Corrida pagamento × cron (o mais caro)
+
+O SELECT do início do cron é antigo: até 50 linhas × HTTP de até 20s, e o cron
+volta em 10 min — uma rodada longa sobrepõe a seguinte. Se o pagamento chegar
+nesse meio tempo, `markConverted` já gravou `'converted'` e apagar seria
+**excluir cliente que pagou**.
+
+**Correção:** re-checagem atômica ANTES do DELETE, dentro de `expireDue`:
+
+```sql
+UPDATE iptv_maxplayer_activations
+   SET updated_at=now()
+ WHERE workspace_id=$1 AND id=$2 AND status='active' AND expires_at <= now()
+ RETURNING id
+```
+
+Postgres avalia `status='active'` e escreve no mesmo comando. Linha que virou
+`'converted'` não volta. Janela residual = o tempo do DELETE em si (ms), não os
+minutos do loop.
+
+### #2 — Username travando para sempre
+
+Duas causas encadeadas:
+
+1. `findUser` devolvia `null` quando não sabia ler a resposta. `null` significa
+   "não existe" → o chamador mandava criar → provedor respondia **409**.
+2. `409` **não estava** na lista de rejeição `[400, 401, 403, 404]` → a linha
+   ficava `'active'` + `'pending'`.
+
+Consequência: o cron pulava (sem `maxplayer_user_id`) e o guard de
+`iptv_username` recusava qualquer nova tentativa daquele usuário. **Para
+sempre.**
+
+**Correção (2 partes):**
+
+- `client.ts`: resposta fora do formato **lança** `MaxPlayerError` em vez de
+  devolver `null`. Quem não sabe ler, não pode afirmar ausência.
+- `service.ts`: `409` entra na lista de rejeição → status `'failed'`, que **libera**
+  nova tentativa (o guard de `iptv_username` só bloqueia
+  `active`/`converted`).
+
+> Observação deliberada: o schema de `/users/search` ainda aceita `users`
+> AUSENTE (o provedor pode omitir o campo quando não há resultado). Torná-lo
+> estrito arriscaria quebrar ativação legítima sem conseguir validar contra a
+> API real (host ainda não funciona). A garantia anti-travamento é o
+> `409 → failed`.
+
+### #3 — Throttle que não limitava nada
+
+A rota fazia `for (i < result.deleted) await sleep(1200)` **depois** de
+`expireDue` — quando todos os DELETEs já tinham saído. Era só um atraso no fim
+da request: 60 linhas disparadas de uma vez estourariam o teto de 60 req/min.
+
+**Correção:** o throttle passou para dentro de `expireDue`, num `finally` logo
+após cada `deleteUser` (sucesso, 404 ou falha — todos tocam o provider).
+
+### #4 — Sem orçamento de tempo
+
+`maxDuration=300`, mas um DELETE pode levar 20s (timeout) → 50 × 20s = 1000s.
+O runtime mata a request e **nada** do que já foi apagado é devolvido.
+
+**Correção:** `BUDGET_MS = 240_000` compartilhado entre todos os workspaces.
+Ao estourar, o loop para, `truncated: true` volta na resposta, e o resto fica
+para o próximo ciclo (10 min depois).
+
+### Testes — e as provas
+
+53 testes MaxPlayer (eram 46). Cada correção teve o teste **revertido para
+provar que pega o bug**:
+
+| Prova | Reversão | Resultado |
+|---|---|---|
+| #1 | tirar a re-checagem | 2 testes falham |
+| #2 | tirar `409` da lista | `409 ... marca failed` falha |
+| #2 | `findUser` voltando a `null` | teste do client falha |
+| #3 | throttle fora do loop | `expected 2 to be 1` (os dois DELETEs saem juntos) |
+| #4 | tirar o deadline | `truncated` fica `false` |
+
+## 24. Verificação e deploy
+
+| Checagem | Resultado |
+|---|---|
+| `tsc --noEmit` | exit 0 |
+| Testes MaxPlayer | **53/53** |
+| Suíte completa | **1154 pass / 21 fail / 59 skipped** |
+| Comparação de falhas (`diff` com o baseline) | **idêntica — mesmas 21 pré-existentes** |
+| Regressão introduzida | **zero** |
+
+Suíte: 1147 → 1154 (+7 testes novos), falhas 21 → 21.
+
+**Imagens:**
+
+| Imagem | Conteúdo | Publicada |
+|---|---|---|
+| `zapflix-tech:maxplayer-page-v2` | página + fixes anteriores | superada |
+| `zapflix-tech:maxplayer-fix-race` | #1 + #2 | superada |
+| `zapflix-tech:maxplayer-cron-fix` | #3 + #4 | ✅ **atual (`latest`)** |
+
+Procedimento de build (mantendo o `.dockerignore` corrigido, sem stash de
+`docs`): isolar só a rota WIP `[...path]` de outro agent para `/tmp`,
+`docker build`, restaurar. A rota WIP **nunca** vai para produção sem revisão.
+
+**Pós-deploy (verificado dentro do container, porta 80):**
+
+| Rota | Resultado |
+|---|---|
+| `GET /api/iptv/maxplayer/config` | 401 (auth) ✅ |
+| `GET /api/iptv/maxplayer/activations` | 401 ✅ |
+| `POST /api/cron/maxplayer-expire` | 401 ✅ |
+| `POST .../integrations/pulse/events` | 401 `INVALID_KEY` ✅ |
+| `GET .../payment-metrics` | 401 ✅ |
+| `GET /` | 307 → `/login` ✅ |
+| logs (100s) | sem erro novo ✅ |
+
+Confirmado na imagem compilada: `deadline`, `throttleMs`, `truncated` no chunk
+do service; `f=Date.now()+24e4, h=!1` na rota; loop morto removido.
+
+### O cron pega as correções
+
+`supercronic.cron` roda `run-crons.sh maxplayer-expire` →
+`call_endpoint "/api/cron/maxplayer-expire"` → **chama a API do
+`wp_zapflix-web`**. Não há cópia do código no container de cron, então as
+correções já estão no caminho de execução.
+
+## 25. Pendências
+
+**Ainda não corrigidos (#5 a #13)** — ver tabela da seção 22. São de baixa e
+média severidade; nenhum trava operação.
+
+**Decisões do dono:**
+
+1. **Commit** — 139 arquivos modificados por ≥2 agents. Recomendação: commitar
+   só arquivos 100% meus (novos, exceto `sigma-activate/route.ts`, que está
+   MISTURADO: meu bloco `markConverted` ~17 linhas + trabalho alheio de
+   60+/80−). Deixar `sigma-activate` para depois do alinhamento.
+2. **`greek-crm.site`** — diagnosei que **não há vhost nem painel Xtream** no
+   nginx de `87.76.215.207`: porta 80 devolve a página padrão do nginx, porta
+   443 serve cert `CN=zxcvb.sbs` para qualquer SNI, `/player_api.php` → 404 e
+   só 80/443 estão abertas. Falta do dono: porta/upstream do painel, ou se
+   `greek-crm.site` deve substituir `zxcvb.sbs`.
+3. **Api-Token** — nunca gravado; banco tem placeholder e `enabled=false`.
+   Antes de ativar, rotacionar o token.
+4. **Assunção não validada** — `markConverted(workspaceId, username)` assume
+   que o `username` final é igual ao `iptv_username` da ativação. Com 0
+   ativações no banco, não verificável ainda.
+
+**Estado:** produção com `enabled=false`, 0 ativações, `domain_id`
+`1790914192685289333`. Nenhuma exclusão real já aconteceu (a API nunca foi
+chamada com um id de cliente).

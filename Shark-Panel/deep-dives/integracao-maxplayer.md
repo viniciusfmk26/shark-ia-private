@@ -1027,3 +1027,50 @@ produção. Não é algo que eu faça sozinho sem revisão do dono/agents.
 - Único aviso nos logs: `[AmploPay Webhook] SSE emit error … column
   c.profile_pic_url does not exist` — **não-fatal**, pré-existente (código
   alheio em WIP que consulta coluna inexistente).
+
+## 28. "O outro" fechado: working tree sincronizado com o git (07/10/2026, 00h)
+
+O dono decidiu commitar o trabalho não-commitado dos outros agents para o
+deploy por clone limpo (A5.4) parar de regredir produção.
+
+### Varredura de segredos (antes de qualquer commit)
+
+- 81 não rastreados + 44 modificados varridos por: JWT, `sk-`, `AKIA`, `AIza`,
+  `ghp_`, chaves privadas, `.pem/.secret`, `password/senha/api_key`, e arquivos
+  de credencial por nome.
+- `docs/evidence/crm-phase02-credentials.json` é relatório de evidência
+  (`production_credentials_used: false`, `credential_values_logged: false`) —
+  sem segredo real.
+- Scripts `create-crm-api-token.mjs` e `crm-provision-dev-credentials.mjs`
+  leem só `process.env`, geram `.secret` fora do repo (`/tmp`) e só rodam em
+  development/homologation.
+- `test/ativeapp.test.ts` usa `vi.stubEnv` com valor sintético.
+- **Nenhum segredo real commitado.**
+
+### Commits (paths explícitos, nunca `git add -A`)
+
+| Commit | Conteúdo |
+|---|---|
+| `25c456e0` | oneclick checkout profissional (páginas, API, lib, types, migration prisma) |
+| `a3d50915` | ativeapp (rotas, componentes, lib, migration, testes) |
+| `af40816d` | crm phase02 (core/service/delivery, webhooks, migrations, scripts, tests, openapi json) |
+| `74c04606` | inbox audio/tts/ai (transcribe, dictation, vozes, groq-vision) |
+| `ee009b2d` | sigma plan packages, streamdeck manual release, landings payment-status, checkout design |
+| `819fd0f` | 44 arquivos modificados do working tree (sincroniza produção) |
+
+**Excluído de propósito:** `app/api/external/crm/v1/[...path]/route.ts`
+(rota WIP não revisada, continua `??` no working tree).
+
+### Prova final
+
+Clone limpo (`git clone --depth 1 file://…`, HEAD `819fd0f`):
+- oneclick/ativeapp/`lib/crm-integration/core`/`docs/openapi/crm-integration.json`
+  presentes ✅
+- `tsc --noEmit` exit 0 ✅
+- `docker build` run → imagem `latest-candidate`: oneclick ✅, ativeapp ✅,
+  crm-webhooks ✅, sigma `markConverted` ✅
+
+**Conclusão:** deploy A5.4 puro agora produz a MESMA coisa que produção.
+Produção continua na tag `working-tree-restore-20261006`; a `latest-candidate`
+é idêntica em conteúdo (difere só no marcador GIT_SHA) e pode ser promovida
+a qualquer momento — sem risco de regressão.

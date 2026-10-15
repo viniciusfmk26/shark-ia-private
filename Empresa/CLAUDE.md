@@ -30,3 +30,8 @@ shark-ia-private/
 - Nova feature → Shark-Panel/ (arquivo feature-nome.md)
 - Novo bug → Shark-Panel/bugs.md
 - Nova decisão arquitetural → Empresa/decisoes-arquiteturais.md
+
+## Feature Meta Ads — 15/10/2026
+
+- A Central de Anúncios oferece **Campanha inteligente**: orçamento diário em BRL, leitura dos 30 dias completos, seleção de campanhas ativas de Leads ou WhatsApp por custo por lead/conversa, preservação da estrutura ABO/CBO, categoria especial e segmentação avançada pela cópia da Meta, prévia e criação pausada ou ativação explícita. A revisão final dos anúncios é da Meta.
+- A tabela `meta_smart_campaigns` guarda workspace, conexão, usuário, `request_id` único, plano, estado e IDs remotos para impedir duplicação e permitir reconciliação. Migration `20261015_meta_smart_campaigns.sql`. Veja [[feature-campanha-inteligente-meta]].

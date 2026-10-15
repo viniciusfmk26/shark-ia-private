@@ -73,3 +73,10 @@ Falsos positivos da auditoria anterior (estavam sendo usados):
 - `whitelabel-meta.tsx#resetFavicon` aponta para `/icon` (não mais `/icon.svg` legado do Next).
 - `/icon` e `/apple-icon` estão em `EXCLUDED_PREFIXES` do `middleware.ts` (favicon precisa carregar mesmo sem sessão).
 - Arquivos legados em `public/` (icon.svg, icon-*-32x32.png, apple-icon.png — todos com o "N" do Next) seguem no repo mas não são mais referenciados pelo HTML.
+
+## Campanha inteligente Meta — 15/10/2026
+
+- A Central de Anúncios planeja pelo orçamento diário e lê os 30 dias completos da conta Meta. Aceita Leads com conversão fora da Meta e Engagement com conversas no WhatsApp. Seleciona conjuntos pelo custo por lead/conversa e mantém a estrutura ABO/CBO original: orçamento único na campanha ou repartido exatamente nos conjuntos.
+- Campanha e conjuntos são copiados pausados pelos endpoints da Meta, preservando segmentação avançada, destino, pixel e categoria especial. O novo criativo mantém o anúncio base e varia título/descrição. A rota verifica objetivo, categoria, estado pausado e orçamento lendo de volta da Meta antes de continuar.
+- `meta_smart_campaigns` registra workspace, conexão, usuário, `request_id` único, prévia, estado (`creating`, `paused`, `active`, `unknown`) e IDs remotos. A campanha só é ativada por confirmação explícita, depois dos filhos. Falha incerta exige reconciliação sem repetição automática. A migration já foi aplicada.
+- Detalhes, limites e operação: [[feature-campanha-inteligente-meta]].

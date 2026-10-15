@@ -10,9 +10,9 @@ O botão final exige confirmação. O padrão cria tudo **pausado**. A ativaçã
 
 ## Segurança e falha parcial
 
-- `POST /api/ads-center/smart-campaign/plan` é leitura. `POST /api/ads-center/smart-campaign/publish` recompõe o plano e compara chave que cobre orçamento, conta, IDs e material criativo. Ambos exigem owner/admin, origem pública e corpo limitado.
+- `POST /api/ads-center/smart-campaign/plan` é leitura. `POST /api/ads-center/smart-campaign/publish` recompõe o plano e compara chave que cobre orçamento, conta, IDs, segmentação, país da categoria especial e material criativo. Ambos exigem owner/admin, origem pública e corpo limitado.
 - A criação reserva `request_id` único por workspace em `meta_smart_campaigns` antes da primeira escrita na Meta. IDs retornados são gravados um a um; clique repetido não duplica a hierarquia. Os POSTs da Graph API não são repetidos automaticamente.
-- Após copiar, a rota lê a campanha e cada conjunto da Meta e exige estado pausado, vínculo e orçamento configurado. Na campanha, também confere objetivo e categoria especial. Falha ou timeout após a reserva marca `unknown`; conferir IDs e estado direto na Meta antes de tentar outra solicitação.
+- Após copiar, a rota lê a campanha e cada conjunto da Meta e exige estado pausado, vínculo e orçamento configurado. Na campanha, também confere objetivo, categoria especial e países da categoria. Falha ou timeout após a reserva marca `unknown`; conferir IDs e estado direto na Meta antes de tentar outra solicitação.
 - Contas inativas, moeda diferente de BRL, ausência de token de System User com `ads_management`, fonte sem orçamento diário compatível ou anúncio ativo de imagem elegível são recusados. `lifetime_budget: "0"` da Meta equivale a ausência de orçamento total.
 - Foram feitas prévias somente de leitura nas duas contas reais ativas: Leads ABO com 6 conjuntos e WhatsApp CBO com 1 conjunto para R$ 100/dia; a segunda mantém `FINANCIAL_PRODUCTS_SERVICES`. Nenhuma campanha ou anúncio real foi criado neste desenvolvimento. **Os endpoints de cópia e criação ainda precisam de homologação em conta Meta de teste antes do primeiro uso de produção.**
 

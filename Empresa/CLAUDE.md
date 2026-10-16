@@ -1,3 +1,9 @@
+## Landing Pages e Domínios — 16/10/2026
+
+- A Central de Domínios lista as Landing Pages IPTV publicadas do workspace e permite vincular a mesma página a vários domínios. Um domínio pode conter várias páginas em caminhos distintos (`/`, `/oferta`), com no máximo 20 vínculos por domínio. O editor de Landing Pages mostra os domínios vinculados e permite criar o vínculo por lá.
+- A migration `20261016_workspace_domain_landing_paths.sql` acrescenta `landing_requested`, `landing_state`, `landing_route_managed` em `workspace_domains` e cria `workspace_domain_landing_paths` com caminho único por domínio. Todas as operações validam o workspace; páginas não publicadas não são oferecidas nem servidas.
+- Vincular a página não ativa DNS ou HTTPS. Após confirmar o TXT e apontar A/CNAME, o usuário ativa as páginas no cartão do domínio. O roteamento público resolve o caminho exato e mantém os usos de aplicativos, e-mail e webhook. Nenhum domínio ou página real é vinculado automaticamente.
+
 ## Laboratório de campanhas e otimização — 16/10/2026
 
 - Campanha inteligente abre o Laboratório: escolha explícita de WhatsApp/Leads, testes separados de textos com IA, imagens da pasta e públicos/interesses. Prévia congelada por conta/BM, orçamento inicial/teto/meta/duração, publicação completa com ativação explícita e histórico de IDs.

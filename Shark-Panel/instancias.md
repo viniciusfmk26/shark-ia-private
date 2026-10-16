@@ -95,3 +95,8 @@ O painel **duplica** em vez de mover (foi exatamente o que causou o BUG-019 na J
 número de origem para 2 instâncias do mesmo workspace caem na MESMA conversa (1 contato =
 1 conversa por workspace) e o worker migra a conversa entre instâncias (`conv_migrated` no
 log). Para ver chats separados, usar números de origem distintos.
+
+# Notas internas — API Oficial (16/10/2026)
+
+Na tela “Editar Instância — API Oficial”, o campo **Notas da instância** permite registrar localização, responsável e observações internas (até 2.000 caracteres). A nota é salva em `whatsapp_instances.notes`, volta ao reabrir a edição e aparece no cartão da instância. Deixar vazio remove a nota. Não é enviada ao WhatsApp ou à Meta. Migration: `20261016_whatsapp_instance_notes.sql`; aplicada em produção em 16/10/2026.
+

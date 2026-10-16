@@ -1,5 +1,9 @@
 # Central: organização e dados — 16/10/2026
 
+## 16/10/2026 — Compras CRM da Shark5
+
+O proprietário autorizou marcar as vendas Shark5 no painel, expressamente sem enviá-las à Meta. CRM e relatórios agora apresenta compras e receita de pagamentos confirmados por conta/origem ao lado de leads e visitas, mantendo “Compras Meta” como dado separado de Insights. A consulta é somente leitura, com corte pelo dia do pagamento no fuso de São Paulo. O anúncio direto precisa ter CTWA capturado antes do pagamento e proprietário único validado no inventário Graph; landing exige touchpoint recebido antes do pagamento. Compras sem origem comprovada ficam fora dos totais por conta. No filtro 10–16/10: 160 compras Shark5, R$ 6.889,10, dois anúncios validados na conta; uma compra BS de R$ 49,90 fica separada. Os 166 citados antes eram janela móvel de 168 horas, que incluía seis vendas de 09/10. Nenhum Pixel Shark5 foi criado nem Purchase Shark5 enviado.
+
 ## Diagnóstico
 As consultas recentes estavam no período Hoje logo após a virada do dia em São Paulo. A Meta retornava listas vazias para as três contas acompanhadas. A consulta histórica de 16/09 a 15/10 retornou cerca de R$ 9,64 mil (R$ 9.640,67 na primeira leitura; R$ 9.641,12 na prévia seguinte, sujeitos a atualização de atribuição da Meta). Não se deve substituir Hoje pelo histórico silenciosamente.
 

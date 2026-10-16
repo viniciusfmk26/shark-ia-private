@@ -1,0 +1,9 @@
+# Pixel e instalação no criador de campanhas — 16/10/2026
+
+Na etapa **Orçamento e público** do criador manual, a conta pode criar explicitamente um Pixel novo mesmo se já possuir outro. A ação não é automática: pede confirmação, valida o system token, lista Pixels antes do POST remoto, reserva a operação em `meta_pixel_operations` e reutiliza `requestId` da mesma tentativa após uma resposta incerta. A Meta pode recusar a criação por permissões ou limites.
+
+A mesma etapa oferece as landing pages IPTV publicadas e os sites de `app_profiles` do workspace. **Instalar Pixel no site** chama `POST /api/ads-center/creation/install-pixel`. A rota exige owner/admin e confere Pixel acessível na conta. Para landing, atualiza `config.pixelId` e `published_config.pixelId`; para site, atualiza `meta_pixel_id`. As duas atualizações verificam que o Pixel não mudou desde a leitura. Substituir um Pixel exige confirmação explícita. Na troca da landing, `token_ciphertext` e `published_token_ciphertext` são removidos; um token CAPI do Pixel novo precisa ser configurado separadamente caso se queira eventos pelo servidor.
+
+Após instalar, abra a página e confira PageView no Gerenciador de Eventos da Meta. Na landing IPTV, o visitante precisa aceitar o consentimento; ela também envia Contact ao clicar no WhatsApp e InitiateCheckout ao clicar no checkout. Os sites de `app_profiles` enviam PageView, e outros eventos dependem do código do site. Purchase só ocorre no fluxo de pagamento configurado; selecionar Purchase na campanha não cria esse evento. Para site externo ao Shark Panel, o código precisa ser instalado no projeto correspondente.
+
+Nenhum Pixel ou site real foi alterado durante a implementação. Testes: `test/meta-pixel-provisioning.test.ts`, `test/ads-center-install-pixel.test.ts`, `test/meta-pixel-api.test.ts`, `test/meta-ads-creation.test.ts`; TypeScript web e worker.

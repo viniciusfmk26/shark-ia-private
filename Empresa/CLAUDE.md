@@ -1,3 +1,9 @@
+## Campanhas de 1 clique: modelos ativos e pausados — 16/10/2026
+
+- `lib/ads-center/smart-campaign.ts` lista apenas modelos realmente copiáveis: objetivo Leads/WhatsApp, orçamento diário, conjunto compatível e anúncio de imagem com gasto. Campanhas pausadas entram na análise; anúncios reprovados/com problemas continuam excluídos. Anúncios da Meta sem título/texto principal podem usar o nome do anúncio como título conservador, sempre mostrado na prévia.
+- `lib/ads-center/autopilot/planner.ts` usa todo o histórico disponível da Meta e registra o risco de dados antigos. A tela mostra campanhas elegíveis e o motivo por campanha indisponível, respeita a conta escolhida e oferece somente contas com token de usuário do sistema para criação.
+- Leitura real sem publicação: prévias de Mari 04 (10 conjuntos, CBO), Shark30 (6, ABO), Shark 5 (2, CBO) e Shark Filmes 3 (3, CBO). Prévia completa de texto da Mari 04 passou com Groq `openai/gpt-oss-120b`, 3 células. Nenhuma campanha foi criada; ainda requer revisão e confirmação antes de publicar.
+
 ## Landing Pages e Domínios — 16/10/2026
 
 - A Central de Domínios lista as Landing Pages IPTV publicadas do workspace e permite vincular a mesma página a vários domínios. Um domínio pode conter várias páginas em caminhos distintos (`/`, `/oferta`), com no máximo 20 vínculos por domínio. O editor de Landing Pages mostra os domínios vinculados e permite criar o vínculo por lá.

@@ -974,3 +974,8 @@ Severidade média porque já é protegido por `ROTATION_API_KEY` (serviço exter
 **Fix:** rebuild do working tree + `docker service update --image zapflix-tech:latest --force wp_zapflix-web` (22/09 22:52 UTC, build_time). Pós-deploy confirmado: galeria Fish em 3 chunks no bundle de produção, `/api/fish/voices` respondendo, app saudável. Detalhes em `feature-studio-voz.md`.
 
 **Lição:** quando o relato envolver feature "nova", conferir primeiro o bundle em produção (e a idade da imagem `docker images` / `docker ps Up`) antes de suspeitar do código.
+
+
+## 16/10/2026 — Central Meta: série diária e período vazio
+
+[x] Corrigidos campos diários ausentes de leads/conversas. Hoje vazio após meia-noite agora é explicitado com datas e atalhos, evitando interpretação de perda de dados. Falhas são excluídas dos totais. Ver CENTRAL-ORGANIZACAO-DADOS-20261016.md.

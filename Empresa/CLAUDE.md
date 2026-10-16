@@ -1,3 +1,8 @@
+## Central de Anúncios: organização e dados — 16/10/2026
+
+- As 11 seções usam navegação agrupada em Análise, Operação, Criação e Configuração, com seleção compacta no celular, títulos descritivos e filtros relevantes por seção. Conjuntos, Anúncios e Criativos aceitam todas as contas acompanhadas, mantendo ações vinculadas à conta correta. Contas tem busca e filtros de acompanhamento/atenção; Biblioteca, criação e CRM receberam organização visual.
+- Visão geral informa datas exatas e diferencia ausência de atividade de falha de consulta. Hoje sem linhas da Meta oferece atalhos para Ontem/30 dias. A consulta diária agora pede actions/action_values, corrigindo gráficos de leads e conversas. Sem mudança de banco ou publicação de anúncios. Detalhes em `docs/meta-ads/CENTRAL-ORGANIZACAO-DADOS-20261016.md`.
+
 # shark-ia-private — Vault de Documentação Zapflix
 
 Este repositório contém APENAS documentação. Não contém código fonte.

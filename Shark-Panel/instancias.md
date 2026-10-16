@@ -100,3 +100,5 @@ log). Para ver chats separados, usar números de origem distintos.
 
 Na tela “Editar Instância — API Oficial”, o campo **Notas da instância** permite registrar localização, responsável e observações internas (até 2.000 caracteres). A nota é salva em `whatsapp_instances.notes`, volta ao reabrir a edição e aparece no cartão da instância. Deixar vazio remove a nota. Não é enviada ao WhatsApp ou à Meta. Migration: `20261016_whatsapp_instance_notes.sql`; aplicada em produção em 16/10/2026.
 
+Publicado no web `9a5b5a74780ecaaacb58fc8298331aaa96b553c6` (`zapflix-tech:instance-notes-9a5b5a74`). `api/version` confirmou a versão, login HTTP 200, `/api/instances` sem sessão HTTP 401, web/worker 1/1 e oito chaves do worker preservadas. TypeScript web/worker e dois testes específicos passaram. O preenchimento autenticado pelo usuário não foi exercitado em produção.
+

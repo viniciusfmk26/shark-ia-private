@@ -55,3 +55,7 @@ Campos de campanha, conjunto, orçamento, targeting, status e end_time conferido
 - https://github.com/facebook/facebook-python-business-sdk/blob/main/facebook_business/adobjects/adset.py
 - https://github.com/facebook/facebook-python-business-sdk/blob/main/facebook_business/adobjects/campaign.py
 Os limiares de otimização são regras conservadoras do produto, não recomendações oficiais da Meta.
+
+## Publicação confirmada
+
+16/10/2026: imagem `zapflix-tech:autopilot-1670bac7`; `/api/version` confirmou `1670bac7`. Migration aplicada e registrada, zero operações no rollout. Web/worker 1/1; guarda confirmou oito chaves do worker. API e cron sem autenticação retornaram 401 JSON, login 200. Cron autenticado com fila vazia retornou 200 `{processed:0}`. Build aprovado, processo de acompanhamento presente no web. Nenhuma escrita na Meta foi feita no smoke.

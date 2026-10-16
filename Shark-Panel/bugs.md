@@ -979,3 +979,7 @@ Severidade média porque já é protegido por `ROTATION_API_KEY` (serviço exter
 ## 16/10/2026 — Central Meta: série diária e período vazio
 
 [x] Corrigidos campos diários ausentes de leads/conversas. Hoje vazio após meia-noite agora é explicitado com datas e atalhos, evitando interpretação de perda de dados. Falhas são excluídas dos totais. Ver CENTRAL-ORGANIZACAO-DADOS-20261016.md.
+
+## 16/10/2026 — Referência duplicada no script público de landing
+
+Reproduzido: `/t/track.js` gerava três marcadores nos sete links da Sharflix e consultava a coleta novamente no reload. Causa: regex aplicada ao href codificado e validação do código puro como marcador. Correção local testada, publicação pendente da definição do vínculo de conta. Detalhes em [[SHARFLIX-TRACKING-20261016]].

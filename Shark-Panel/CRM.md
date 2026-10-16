@@ -43,3 +43,7 @@ app/(dashboard)/ciclo-de-vida/ + api/ciclo-de-vida → Fase 5: buckets, ROI da r
 ```
 Tabelas novas: `winback_outcomes`; colunas novas: `crm_deals.opportunity_id`, `conversations.{abandoned_at,close_reason,claimed_at,abandoned_followup_at}`, `csat_responses.agent_user_id`.
 ⚠️ A definição de "cliente" da tela /contacts continua na regra antiga (custom_fields.iptv_plan) — migração futura. Detalhes: [[2026-07-11_crm-completo-5-fases]].
+
+## 16/10/2026 — Integração externa Sharflix em validação
+
+Script instalado na landing Vercel. Correção local de marcadores duplicados/cache testada (89 testes; TypeScript web/worker; Chromium com rede simulada), ainda não publicada. Binding aguarda confirmação de conta: usuário mencionou Shark5, Pixel instalado está associado à Shark30. Nenhuma alteração de banco. Ver [[SHARFLIX-TRACKING-20261016]]. Relatório legado e atribuição real ainda pendentes.

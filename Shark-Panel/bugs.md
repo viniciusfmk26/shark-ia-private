@@ -983,3 +983,7 @@ Severidade média porque já é protegido por `ROTATION_API_KEY` (serviço exter
 ## 16/10/2026 — Referência duplicada no script público de landing
 
 Reproduzido: `/t/track.js` gerava três marcadores nos sete links da Sharflix e consultava a coleta novamente no reload. Causa: regex aplicada ao href codificado e validação do código puro como marcador. Correção local testada, publicação pendente da definição do vínculo de conta. Detalhes em [[SHARFLIX-TRACKING-20261016]].
+
+### Resolvido em produção — referência duplicada — 16/10/2026 05:44 UTC
+
+Web `85b09937` publicado. Validação real na Sharflix confirmou sete links com exatamente uma referência e apenas uma coleta após reload; snapshot Shark30 correto. Binding autorizado pelo dono e configurado. Não confundir esta correção com o relatório CRM legado ainda pendente.

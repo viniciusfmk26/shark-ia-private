@@ -32,3 +32,24 @@
 - Após definição, cadastrar binding com workspace/conexão conferidos, publicar correção e validar resposta real da coleta.
 - Atribuição de mensagem real permanece não homologada. Cadastro de visitas não equivale a contatos nem comprova integração completa dos relatórios.
 - Relatório CRM legado depende de `ad_campaigns` e continua sendo uma pendência separada; esta correção não reconstitui origens históricas nem modifica a sincronização Meta.
+
+## Confirmação do usuário e publicação em andamento
+
+Usuário esclareceu: **Shark5 recebe diretamente do Facebook/WhatsApp; Shark30 recebe pela landing page**. Vínculo autorizado: `sharflix` → Shark30 no workspace Shark2, sem alteração da Shark5.
+
+- Correção commit `85b09937`, enviada ao remoto com guarda do worker; oito chaves preservadas.
+- Build em clone limpo iniciado para `zapflix-tech:tracking-85b09937`.
+- Cadastro preparado com INSERT condicionado à conta/pixel/workspace exatos e validação transacional; não sobrescreve vínculo divergente.
+- Validação final usará uma única visita identificada como teste, sem mensagens ou eventos da Meta/analytics. O registro temporário será removido por visitante exato, workspace e ausência de contato, depois de verificar o snapshot da Shark30.
+
+## Publicado e validado — 16/10/2026 05:44 UTC
+
+- Web publicado em `85b09937`, imagem `zapflix-tech:tracking-85b09937`; build em clone limpo concluído e serviço convergido. `/api/version` confirmou SHA.
+- Binding `sharflix` criado no workspace Shark2 para Shark30 (`act_2187852758751947`), conexão `d7688941-72d7-4753-a738-4bba33f9ddad`, domínio `landing-page-sharflix.vercel.app`, Pixel `1097829939319128`. Nenhuma associação da Shark5 alterada.
+- Chromium com API de coleta real: sete links com uma referência idêntica e válida; reload manteve o código e total de uma coleta. Pixel/analytics bloqueados e nenhuma mensagem enviada.
+- Banco confirmou snapshot da conta/conexão/Pixel e UTMs da visita de teste. Uma linha temporária removida por visitante exato, workspace/site e ausência de contato/contacted_at. Nenhum contato, conversa ou pagamento criado/alterado.
+- Login200, API Ads Center sem sessão401, web/worker1/1 e oito nomes de chaves do worker preservados.
+- Evidência e SQL operacional em `/root/backups/sharflix-tracking-20261016/`. Script público tem cache de até cinco minutos; abas abertas antes do deploy devem ser recarregadas.
+- Não foi enviada mensagem para homologar chegada de referência no worker; próximo contato real permitirá essa verificação. O relatório CRM legado ainda requer correção separada: ativar esta coleta não preenche `ad_campaigns` nem reconstrói histórico de origem.
+
+As seções anteriores registram o diagnóstico e o estado anterior à confirmação/publicação; esta seção é o estado atual.

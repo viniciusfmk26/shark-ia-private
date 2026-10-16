@@ -47,3 +47,7 @@ Tabelas novas: `winback_outcomes`; colunas novas: `crm_deals.opportunity_id`, `c
 ## 16/10/2026 — Integração externa Sharflix em validação
 
 Script instalado na landing Vercel. Correção local de marcadores duplicados/cache testada (89 testes; TypeScript web/worker; Chromium com rede simulada), ainda não publicada. Binding aguarda confirmação de conta: usuário mencionou Shark5, Pixel instalado está associado à Shark30. Nenhuma alteração de banco. Ver [[SHARFLIX-TRACKING-20261016]]. Relatório legado e atribuição real ainda pendentes.
+
+### Sharflix publicada e configurada — 16/10/2026 05:44 UTC
+
+Dono confirmou: Shark5 direta do Facebook/WhatsApp; Shark30 via landing. Binding `sharflix` → Shark30 criado no workspace Shark2. Correção `85b09937` publicada; sete links com marcador único, uma coleta no reload e snapshot da Shark30 confirmados com API real/Chromium/Postgres. Visita temporária removida; sem mensagens/conversões. Homologação de chegada real no worker e correção do relatório legado ainda pendentes. Ver [[SHARFLIX-TRACKING-20261016]].

@@ -263,3 +263,8 @@ SECRET_KEY
 | RLS no banco | Ineficaz (role superuser) | Sem defesa em profundidade |
 | Backups | Não configurados | Risco total de perda de dados |
 | Monitor | Offline há 3 semanas | Sistema operacionalmente cego |
+
+
+## 16/10/2026 — Laboratório Meta
+
+Novo acompanhante do processo web: `ads-autopilot-loop.cjs`, chamada local autenticada CRON_TOKEN a cada cinco minutos, uma operação vencida por vez, análise individual a cada seis horas. Sem inscrições automáticas de campanhas existentes ou alteração do cron legado. Migration cria `meta_ads_autopilot` e `meta_ads_autopilot_events`. Locks e estados incertos impedem repetição de mutações. Detalhes em Shark-Panel/AUTOPILOT-20261016.md.

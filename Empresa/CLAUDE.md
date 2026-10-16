@@ -1,3 +1,9 @@
+## Laboratório de campanhas e otimização — 16/10/2026
+
+- Campanha inteligente abre o Laboratório: escolha explícita de WhatsApp/Leads, testes separados de textos com IA, imagens da pasta e públicos/interesses. Prévia congelada por conta/BM, orçamento inicial/teto/meta/duração, publicação completa com ativação explícita e histórico de IDs.
+- Acompanhamento a cada seis horas pelo processo web; sugestões por IA diariamente e regras verificáveis para pausas/ajustes de até 10%, após 72h e amostra mínima. Padrão só sugere; modo automático exige confirmação. Novos ciclos dependem de aprovação. Não usa resultados ausentes como zero nem reativa campanhas pausadas automaticamente.
+- Migration `20261016_meta_ads_autopilot.sql` cria operações e eventos. Loop local separado de cron legado; não há operação ativa por instalar o recurso. Limites, validação, rollout e rollback em `docs/meta-ads/AUTOPILOT-20261016.md`. Sem campanha real criada nos testes; primeira publicação real depende do operador.
+
 ## Central de Anúncios: organização e dados — 16/10/2026
 
 - As 11 seções usam navegação agrupada em Análise, Operação, Criação e Configuração, com seleção compacta no celular, títulos descritivos e filtros relevantes por seção. Conjuntos, Anúncios e Criativos aceitam todas as contas acompanhadas, mantendo ações vinculadas à conta correta. Contas tem busca e filtros de acompanhamento/atenção; Biblioteca, criação e CRM receberam organização visual.

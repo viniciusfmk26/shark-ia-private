@@ -7,3 +7,10 @@ A mesma página aceita vários domínios; um domínio aceita até 20 páginas em
 O vínculo por si só não publica no domínio: confirmar propriedade com TXT, apontar DNS para o servidor e clicar em **Ativar páginas / HTTPS**. O estado DNS/HTTPS aparece nas duas telas. O domínio pode continuar servindo e-mail e webhook; sites de aplicativos são selecionados em seção separada.
 
 Implementação: migration `20261016_workspace_domain_landing_paths.sql`, `lib/domains/service.ts`, API `/api/domains/[id]/pages`, resolver `/api/internal/custom-domain-resolve`, middleware e telas. A migração é aditiva. Nenhum domínio foi vinculado ou ativado automaticamente.
+
+## Ativação real — 16/10/2026
+
+- `appvizzion.site` foi vinculado à Landing Page IPTV publicada `Shark2` (`shark2-6bfc9692e036`) no caminho `/` do mesmo workspace.
+- TXT de propriedade e A `69.62.91.79` verificados; rota Traefik dedicada escrita e certificado Let's Encrypt emitido.
+- `https://appvizzion.site/` e a página de privacidade retornaram HTTP 200 com TLS válido. Health do domínio retornou `ok: true`; estado `landing_state=active`, `site_dns=true`, `https=true`.
+- E-mail e webhook não foram ativados nesta operação. Nenhum outro domínio ou caminho foi vinculado.

@@ -37,3 +37,7 @@ shark-ia-private/
 - Desde 16/10/2026, o workspace pode cadastrar uma chave Groq principal e uma de reserva na aba Campanha inteligente. O servidor valida e cifra ambas em `meta_smart_campaign_ai_keys`; tenta a reserva se a principal falhar. Sem Groq, a recomendação usa OpenRouter. Migration `20261016_meta_smart_campaign_ai_keys.sql`.
 - Correção de 16/10/2026: erro da recomendação IA retorna JSON 503 para evitar substituição por HTML do Easypanel; OpenRouter gratuito tem segunda tentativa quando a primeira falha.
 - A tabela `meta_smart_campaigns` guarda workspace, conexão, usuário, `request_id` único, plano, estado e IDs remotos para impedir duplicação e permitir reconciliação. Migration `20261015_meta_smart_campaigns.sql`. Veja [[feature-campanha-inteligente-meta]].
+
+## Dashboard Meta — 16/10/2026
+
+- Visão geral reorganizada com indicadores consolidados por moeda, gráficos de evolução e participação por conta, comparação compacta e detalhes expansíveis. Usa os dados já carregados; alternar métrica ou moeda não consulta a Meta. Ver [[feature-dashboard-visao-geral-meta]].

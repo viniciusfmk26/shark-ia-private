@@ -24,3 +24,7 @@ Havia também um defeito real: a série diária solicitava apenas gasto, impress
 ## Publicação confirmada
 
 Web publicado em 16/10/2026: imagem `zapflix-tech:central-27afcf32`, `/api/version` confirmou `27afcf32`. Login HTTP 200; insights sem sessão HTTP 401 JSON; web e worker 1/1. Guarda do deploy confirmou preservação das oito chaves do worker. Build Docker concluído com sucesso.
+
+## 16/10/2026 — Público, compras e saúde (release em preparação)
+
+Compras e receita da Meta agora aparecem no consolidado, série diária e tabelas de campanhas. A seção Público e entrega consulta idade, gênero, região, dispositivo, plataforma, posição e horário, inclusive por campanha com verificação de conta. Saúde mostra estado atual da Meta, BM, Pixel cadastrado e últimos dados da landing; histórico segue como importação de campanhas. Shark5 não possui Pixel de compras cadastrado; envio de compras permanece desativado. Ver [[ANALISE-PUBLICO-SAUDE-20261016]].

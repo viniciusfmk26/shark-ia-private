@@ -56,6 +56,7 @@ shark-ia-private/
 - Visão geral reorganizada com indicadores consolidados por moeda, gráficos de evolução e participação por conta, comparação compacta e detalhes expansíveis. Usa os dados já carregados; alternar métrica ou moeda não consulta a Meta. Ver [[feature-dashboard-visao-geral-meta]].
 ## Domínios: exportação Hostinger RFC 1035 — 16/10/2026
 
+- Atualização: depois de solicitar e ativar o e-mail no Mailcow, com DKIM público confirmado, o arquivo BIND inclui MX, SPF, DKIM e DMARC. Antes da ativação contém a prova TXT e o A de Site/Webhook quando solicitado. O DKIM longo é dividido em trechos válidos de até 200 caracteres. A tela explica que é preciso baixar novamente após ativar o e-mail, revisar registros existentes e que DNS não cria caixas nem importa mensagens.
 - O cadastro da Central de Domínios agora pede apenas domínio e nome. E-mail, webhook e vínculo a um site existente são escolhidos depois, no cartão do domínio. A migration `20261016_workspace_domains_optional_purpose.sql` remove a obrigação de finalidade imediata, mantendo a validação de vínculo do site. O TXT de propriedade é apresentado assim que o domínio é cadastrado.
 - A Central de Domínios baixa um `.txt` BIND parcial com `$ORIGIN`, `$TTL`, `IN`, TTL por registro, TXT de propriedade e A para Site/Webhook. O arquivo usa o modo **Append** do hPanel e preserva SOA, NS e registros de e-mail já existentes. Detalhes em [[domains-hostinger-rfc1035]].
 

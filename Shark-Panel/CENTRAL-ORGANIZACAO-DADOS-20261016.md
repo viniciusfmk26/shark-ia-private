@@ -28,3 +28,7 @@ Web publicado em 16/10/2026: imagem `zapflix-tech:central-27afcf32`, `/api/versi
 ## 16/10/2026 — Público, compras e saúde (release em preparação)
 
 Compras e receita da Meta agora aparecem no consolidado, série diária e tabelas de campanhas. A seção Público e entrega consulta idade, gênero, região, dispositivo, plataforma, posição e horário, inclusive por campanha com verificação de conta. Saúde mostra estado atual da Meta, BM, Pixel cadastrado e últimos dados da landing; histórico segue como importação de campanhas. Shark5 não possui Pixel de compras cadastrado; envio de compras permanece desativado. Ver [[ANALISE-PUBLICO-SAUDE-20261016]].
+
+### Publicação confirmada — 16/10/2026 16:25 UTC
+
+Web `9f72e373` no ar; 71 testes, TypeScript e revisão em Chromium aprovados. Login e autorização de APIs conferidos; web/worker1/1, oito chaves preservadas. Compras da Meta não apareceram na consulta real do período; envio de compras continua desligado. Evidência `docs/evidence/ads-analysis-release-20261016.json` no repositório local.

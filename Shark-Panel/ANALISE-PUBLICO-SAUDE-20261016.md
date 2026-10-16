@@ -30,3 +30,12 @@ Referência primária consultada: SDK oficial da Meta, campos e recortes de Insi
 ## Publicação
 
 Pendente build em clone limpo e rollout web. Sem migration. Preservar worker, configuração de compras e sincronização; sem push que provoque redeploy do worker. Rollback: imagem anterior `zapflix-tech:meta-purchases-04c17785` (confirmar no serviço antes do deploy).
+
+## Publicado — 16/10/2026 16:25 UTC
+
+- Web `9f72e373`, imagem `zapflix-tech:ads-analysis-9f72e373`; build em clone limpo concluído e serviço convergido. Versão pública confirmou SHA. Sem push remoto de código ou redeploy do worker.
+- Login200, APIs de saúde/insights sem sessão401; web/worker1/1; oito chaves do worker presentes. Logs recentes sem erro novo relacionado à Central.
+- 71 testes e TypeScript web/worker aprovados; Chromium de laboratório aprovou desktop/celular, filtro de campanha e gráfico de compras. A UI autenticada real depende de sessão do usuário, não fabricada.
+- Nenhum evento de compra, anúncio ou mensagem enviado; configuração de compras e sincronização Meta preservadas. Evidência: `docs/evidence/ads-analysis-release-20261016.json`. Imagem anterior para rollback: `zapflix-tech:meta-purchases-04c17785`.
+
+A seção anterior registra o estado antes da publicação; esta é a versão atual.

@@ -20,3 +20,7 @@ Havia também um defeito real: a série diária solicitava apenas gasto, impress
 - Prévia completa no Chromium: 11 seções navegáveis, sem erros JS; viewport móvel de 390px sem overflow global. Dashboard usa resposta Graph sanitizada real; demais recursos são fixtures de prévia.
 - Não houve teste de sessão autenticada do usuário em produção. ESLint não executável sem configuração no repositório.
 - Build/deploy devem usar clone limpo e confirmar /api/version; nenhuma escrita na Meta faz parte desta entrega.
+
+## Publicação confirmada
+
+Web publicado em 16/10/2026: imagem `zapflix-tech:central-27afcf32`, `/api/version` confirmou `27afcf32`. Login HTTP 200; insights sem sessão HTTP 401 JSON; web e worker 1/1. Guarda do deploy confirmou preservação das oito chaves do worker. Build Docker concluído com sucesso.

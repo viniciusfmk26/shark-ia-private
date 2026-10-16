@@ -7,3 +7,10 @@ Diagnóstico de produção: os dois sites têm visitas e contatos com referênci
 Correção local preparada em `/api/t/collect`: formar URL HTTPS do domínio cadastrado e do caminho da visita, mantendo a primeira URL no UPSERT; host fornecido pelo visitante é recusado. 33 testes direcionados e TypeScript web/worker aprovados. Ainda não publicada nem ativada.
 
 Próximo passo: publicar a correção e validar uma nova coleta real em cada site; enviar evento sintético de teste para cada Pixel; conferir um pagamento futuro ligado a contato/landing; habilitar somente destinos testados, com cutoff atual. Separar na UI vendas do CRM e compras atribuídas pela Meta; recebimento CAPI não garante atribuição de anúncio.
+
+## Ativação — 16/10/2026 14:08 Brasília
+
+- Publicada imagem web `zapflix-tech:purchase-landing-6c82ccb5`; worker e suas oito chaves preservados. Testes CAPI sintéticos aceitos pelos Pixels da Shark30 e Shark Filmes 3.
+- Coleta pública em cada landing gravou URL completa e Pixel correto; dois touchpoints temporários removidos. Nenhuma mensagem ou compra de teste criada.
+- Destinos dessas duas contas ativados em live na mesma transação do corte de compras futuras. Shark5 continua sem destino. Cron `campaign-batches` confirmou HTTP 200; 33 testes e TypeScript web/worker aprovados.
+- Na conferência inicial, nenhum pagamento novo havia ocorrido depois do corte. A primeira entrega real e a atribuição da Meta ainda precisam ser observadas; pagamentos anteriores não são reenviados.

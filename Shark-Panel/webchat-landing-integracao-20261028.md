@@ -1,0 +1,11 @@
+# Webchat nas instâncias e Landing Pages IPTV — 28/10/2026
+
+Fluxo: **Instâncias → Cadastrar Webchat** cria um canal `whatsapp_instances` de `channel='webchat'`, `provider='webchat'`, sem número ou Evolution. O status técnico fica `disconnected` para que rotinas antigas de envio WhatsApp, que filtram por `status='connected'`, não selecionem o canal web. Para Webchat, a disponibilidade é definida por `channel='webchat'`, `deleted_at IS NULL` e `is_paused IS NOT TRUE`. O owner/admin do workspace com feature Webchat pode criá-lo, sujeito ao limite de instâncias. A migration `20261028_webchat_instances.sql` amplia somente o CHECK do provider. O cadastro usa workspace da sessão, nunca o do corpo da requisição.
+
+**Landing Pages IPTV → Tipo de landing → Landing Webchat** passa a oferecer seleção de canal Webchat ativo do mesmo workspace. A API valida o canal ao publicar, inclusive quando o PATCH não envia configuração. `published_config` mantém o snapshot. A landing publicada envia botões de contato ao chat `/l/[slug]/chat`, com WhatsApp secundário; páginas antigas mantêm o fluxo WhatsApp. A página pública resolve o workspace pela landing publicada e exige que a instância escolhida pertença a ele.
+
+O cliente informa nome e celular com DDD. O navegador guarda o token da sessão por landing/canal, preservando a conversa após recarregar. `/api/webchat/start` cria contato, conversa e primeira mensagem. `/api/webchat/message` envia texto, foto, vídeo ou áudio ao mesmo Inbox; `/api/webchat/messages` mostra respostas. O chat permite câmera e gravação de áudio. O som de resposta toca apenas com a página aberta e visível. Anexos neste fluxo têm limite de 20 MB por arquivo; o limite evita uploads base64 excessivos. Notificações push com o navegador fechado ainda não estão implementadas, portanto não devem ser anunciadas como equivalentes ao WhatsApp.
+
+Segurança: `webchat/start` não usa o workspace padrão se um workspace explícito não existe; a seleção de instância filtra workspace, canal, status e pausa. A conversa aberta reaproveitada precisa pertencer à mesma instância. A API de publicação rejeita canal de outro workspace.
+
+Verificações: TypeScript web/worker, testes `iptv-landings.test.ts` e `webchat-instance-create.test.ts`, build limpo, migração em transação, smoke de produção e fluxo controlado sem cliente real.

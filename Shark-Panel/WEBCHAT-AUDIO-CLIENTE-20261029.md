@@ -4,7 +4,7 @@ Falha verificada em produção: mensagens recebidas tinham `media_type=audio/web
 
 `lib/webchat/parse-media-data.ts` passa a reconhecer parâmetros MIME antes de `;base64`, extrai somente os dados após a vírgula e rejeita Base64 inválido. `/api/webchat/message` usa essa função antes do upload. O formato `audio/webm;codecs=opus` e imagem comum passaram em teste unitário; TypeScript web e diff também passaram. Arquivos antigos de 15 bytes não podem ser reconstruídos: solicitar nova gravação.
 
-Nenhum áudio real foi enviado durante o teste desta correção. Validação em aparelho real e Inbox após publicação ainda é necessária.
+Nenhum áudio real foi enviado durante o teste desta correção. Após publicação, o navegador móvel simulado percorreu apagar, pausar, retomar, prévia e enviar com API interceptada. Um segundo teste usou o MediaRecorder real do Chromium com microfone de teste: prévia reproduziu e o arquivo WebM enviado tinha cabeçalho válido e cerca de 12 KB. Ainda falta a conferência em aparelho real e no Inbox com uma gravação nova do cliente.
 
 ## Fluxo de gravação do cliente
 
